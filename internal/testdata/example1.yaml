@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=../../schema.json
+version: "1"
+database:
+  driver: "postgres"
+  url: "postgres://localhost:5432/db1"
+tables:
+  - name: "table1"
+    columns:
+      - name: "id"
+        type: "int"
+        primaryKey: true
+        description: >-
+          This is a description of id
+      - name: "count"
+        type: "int"
+        default: "1"
+        description: This is a description of count
+      - name: "name"
+        type: "string"
+        description: This is a description of name
+        unique: true
+      - name: "uuid"
+        type: "string"
+        subtype: "uuid"
+        description: This is a description of uuid
+      - name: "ip_address"
+        type: "string"
+        nativeType: "cidr"
+        description: This is a description of ip_address

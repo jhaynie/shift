@@ -1,0 +1,132 @@
+{
+  "$id": "https://github.com/jhaynie/shift/blob/main/schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Shift Database Schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "The version of the Shift configuration file."
+    },
+    "database": {
+      "type": "object",
+      "description": "The database configuration for the migration to use.",
+      "properties": {
+        "driver": {
+          "type": "string",
+          "description": "The database driver to use for the migration.",
+          "enum": ["mysql", "postgres", "sqlite"]
+        },
+        "url": {
+          "type": "string",
+          "description": "The database driver URL for connecting to the database.",
+          "format": "uri"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["driver", "url"]
+    },
+    "tables": {
+      "type": "array",
+      "description": "The tables to manage in the migration.",
+      "items": {
+        "type": "object",
+        "description": "The table definition",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the table."
+          },
+          "columns": {
+            "type": "array",
+            "description": "The columns to manage in the table.",
+            "items": {
+              "type": "object",
+              "description": "The column definition",
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "The name of the column."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "The description of the column."
+                },
+                "type": {
+                  "type": "string",
+                  "description": "The data type of the column.",
+                  "enum": ["string", "int", "double", "boolean", "datetime"]
+                },
+                "subtype": {
+                  "type": "string",
+                  "description": "The type subtype of the column.",
+                  "enum": ["json", "array", "binary", "bit", "uuid"]
+                },
+                "nativeType": {
+                  "type": "string",
+                  "description": "Specify a specific native database type which overrides the type."
+                },
+                "length": {
+                  "type": "integer",
+                  "description": "The max length of the column.",
+                  "exclusiveMinimum": 0,
+                  "maximum": 65535
+                },
+                "nullable": {
+                  "type": "boolean",
+                  "description": "Whether the column is nullable."
+                },
+                "default": {
+                  "type": "string",
+                  "description": "The default value of the column."
+                },
+                "autoIncrement": {
+                  "type": "boolean",
+                  "description": "Whether the column is auto-incrementing."
+                },
+                "primaryKey": {
+                  "type": "boolean",
+                  "description": "Whether the column is a primary key."
+                },
+                "unique": {
+                  "type": "boolean",
+                  "description": "Whether the column is unique."
+                },
+                "index": {
+                  "type": "boolean",
+                  "description": "Whether the column is indexed."
+                },
+                "references": {
+                  "type": "object",
+                  "description": "The foreign key reference for the column.",
+                  "additionalProperties": false,
+                  "properties": {
+                    "table": {
+                      "type": "string",
+                      "description": "The table the column references."
+                    },
+                    "column": {
+                      "type": "string",
+                      "description": "The column the column references."
+                    }
+                  },
+                  "required": ["table", "column"]
+                }
+              },
+              "required": ["name", "type"],
+              "minItems": 1
+            }
+          }
+        },
+        "required": ["name", "columns"],
+        "minItems": 1
+      },
+      "minItems": 1
+    }
+  },
+  "required": ["version", "database", "tables"],
+  "description": "The JSON schema for the Shift database configuration file.",
+  "additionalProperties": false
+}
