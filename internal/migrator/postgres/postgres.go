@@ -29,6 +29,10 @@ func (p *PostgresMigrator) ToSchema(args migrator.ToSchemaArgs) (*schema.SchemaJ
 	if err != nil {
 		return nil, fmt.Errorf("error generating column descriptions: %w", err)
 	}
+	autoIncrements, err := GetTableAutoIncrements(args.Context, args.Logger, args.DB)
+	if err != nil {
+		return nil, fmt.Errorf("error generating column auto increments: %w", err)
+	}
 	for table, detail := range tables {
 		if tableComment, ok := tableComments[table]; ok && tableComment != "" {
 			detail.Description = &tableComment
@@ -47,10 +51,18 @@ func (p *PostgresMigrator) ToSchema(args migrator.ToSchemaArgs) (*schema.SchemaJ
 				return nil, fmt.Errorf("error converting column %s with table: %s. %s", column.Name, table, err)
 			}
 			column.DataType = string(dt)
+			if column.MaxLength != nil && *column.MaxLength > 0 {
+				column.UDTName += fmt.Sprintf("(%d)", *column.MaxLength)
+			}
 			for _, constraint := range detail.Constraints {
 				if constraint.Type == "PRIMARY KEY" {
 					column.IsPrimaryKey = true
 					break
+				}
+			}
+			if columns, ok := autoIncrements[table]; ok {
+				if val, ok := columns[column.Name]; ok && val {
+					column.IsAutoIncrementing = true
 				}
 			}
 			detail.Columns[i] = column

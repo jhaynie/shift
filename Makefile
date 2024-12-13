@@ -1,4 +1,4 @@
-.PHONY: types tidy format
+.PHONY: types tidy format test e2e
 
 types:
 	@go-jsonschema -p schema ./schema.json > internal/schema/types.go

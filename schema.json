@@ -100,7 +100,7 @@
                     }
                   }
                 },
-                "length": {
+                "maxLength": {
                   "type": "integer",
                   "description": "The max length of the column.",
                   "exclusiveMinimum": 0,

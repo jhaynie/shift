@@ -10,6 +10,15 @@ import (
 	"github.com/shopmonkeyus/go-common/logger"
 )
 
+func execute(ctx context.Context, logger logger.Logger, db *sql.DB, query string, args ...any) (*sql.Rows, error) {
+	logger.Trace("sql: %s", query)
+	res, err := db.QueryContext(ctx, query, args...)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	return res, err
+}
+
 var tableCommentSQL = util.CleanSQL(`SELECT
     c.relname,
     COALESCE(obj_description(c.oid), '')
@@ -25,9 +34,8 @@ WHERE
 
 // GetTableDescriptions will return a map of table to table comment
 func GetTableDescriptions(ctx context.Context, logger logger.Logger, db *sql.DB) (map[string]string, error) {
-	logger.Trace("sql: %s", tableCommentSQL)
-	res, err := db.QueryContext(ctx, tableCommentSQL)
-	if err != nil && err != sql.ErrNoRows {
+	res, err := execute(ctx, logger, db, tableCommentSQL)
+	if err != nil {
 		return nil, err
 	}
 	tables := make(map[string]string)
@@ -62,9 +70,8 @@ WHERE
 
 // GetColumnDescriptions will return a map of table to a map of column comments
 func GetColumnDescriptions(ctx context.Context, logger logger.Logger, db *sql.DB) (map[string]map[string]string, error) {
-	logger.Trace("sql: %s", columnCommentSQL)
-	res, err := db.QueryContext(ctx, columnCommentSQL)
-	if err != nil && err != sql.ErrNoRows {
+	res, err := execute(ctx, logger, db, columnCommentSQL)
+	if err != nil {
 		return nil, err
 	}
 	tables := make(map[string]map[string]string)
@@ -102,4 +109,43 @@ func DataTypeToType(val string) (schema.SchemaJsonTablesElemColumnsElemType, err
 		return schema.SchemaJsonTablesElemColumnsElemTypeBoolean, nil
 	}
 	return "", fmt.Errorf("unhandled data type: %s", val)
+}
+
+var tableIdentitySQL = util.CleanSQL(`SELECT
+	table_name,
+	column_name
+FROM
+    information_schema.columns
+WHERE
+	data_type = 'integer'
+	AND (is_identity = 'YES' OR column_default LIKE 'nextval%')
+	AND table_name IN (
+  	SELECT table_name FROM information_schema.tables 
+  	WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog','information_schema') 
+  	AND table_catalog = current_database() 
+	)`)
+
+// GetTableAutoIncrements returns a map of table to column of those columns which are auto incrementing
+func GetTableAutoIncrements(ctx context.Context, logger logger.Logger, db *sql.DB) (map[string]map[string]bool, error) {
+	res, err := execute(ctx, logger, db, tableIdentitySQL)
+	if err != nil {
+		return nil, err
+	}
+	tables := make(map[string]map[string]bool)
+	if res != nil {
+		defer res.Close()
+		for res.Next() {
+			var name, column string
+			if err := res.Scan(&name, &column); err != nil {
+				return nil, err
+			}
+			kv := tables[name]
+			if kv == nil {
+				kv = make(map[string]bool)
+				tables[name] = kv
+			}
+			kv[column] = true
+		}
+	}
+	return tables, nil
 }

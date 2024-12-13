@@ -72,7 +72,7 @@ type SchemaJsonTablesElemColumnsElem struct {
 	Index *bool `json:"index,omitempty" yaml:"index,omitempty" mapstructure:"index,omitempty"`
 
 	// The max length of the column.
-	Length *int `json:"length,omitempty" yaml:"length,omitempty" mapstructure:"length,omitempty"`
+	MaxLength *int `json:"maxLength,omitempty" yaml:"maxLength,omitempty" mapstructure:"maxLength,omitempty"`
 
 	// The name of the column.
 	Name string `json:"name" yaml:"name" mapstructure:"name"`
@@ -242,11 +242,11 @@ func (j *SchemaJsonTablesElemColumnsElem) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &plain); err != nil {
 		return err
 	}
-	if plain.Length != nil && 65535 < *plain.Length {
-		return fmt.Errorf("field %s: must be <= %v", "length", 65535)
+	if plain.MaxLength != nil && 65535 < *plain.MaxLength {
+		return fmt.Errorf("field %s: must be <= %v", "maxLength", 65535)
 	}
-	if plain.Length != nil && 0 >= *plain.Length {
-		return fmt.Errorf("field %s: must be > %v", "length", 0)
+	if plain.MaxLength != nil && 0 >= *plain.MaxLength {
+		return fmt.Errorf("field %s: must be > %v", "maxLength", 0)
 	}
 	*j = SchemaJsonTablesElemColumnsElem(plain)
 	return nil

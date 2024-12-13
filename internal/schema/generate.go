@@ -2,6 +2,7 @@ package schema
 
 import (
 	"github.com/jhaynie/shift/internal/migrator/types"
+	"github.com/jhaynie/shift/internal/util"
 	"github.com/shopmonkeyus/go-common/logger"
 )
 
@@ -82,12 +83,17 @@ func GenerateSchemaJsonFromInfoTables(logger logger.Logger, driver DatabaseDrive
 		elem.Columns = make([]SchemaJsonTablesElemColumnsElem, len(detail.Columns))
 		for i, column := range detail.Columns {
 			col := SchemaJsonTablesElemColumnsElem{
-				Name:        column.Name,
-				Default:     ToNativeDefault(driver, column.Default),
-				Description: column.Description,
-				Type:        SchemaJsonTablesElemColumnsElemType(column.DataType),
-				NativeType:  ToNativeType(driver, column.UDTName),
-				Nullable:    &column.IsNullable,
+				Name:          column.Name,
+				Default:       ToNativeDefault(driver, column.Default),
+				Description:   column.Description,
+				Type:          SchemaJsonTablesElemColumnsElemType(column.DataType),
+				NativeType:    ToNativeType(driver, column.UDTName),
+				Nullable:      &column.IsNullable,
+				AutoIncrement: util.Ptr(column.IsAutoIncrementing),
+				PrimaryKey:    util.Ptr(column.IsPrimaryKey),
+			}
+			if column.MaxLength != nil && *column.MaxLength > 0 {
+				col.MaxLength = util.Ptr(int(*column.MaxLength))
 			}
 			elem.Columns[i] = col
 		}

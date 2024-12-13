@@ -64,7 +64,6 @@ var generateSchemaCmd = &cobra.Command{
 		if err != nil {
 			logger.Fatal("error generating schema: %s", err)
 		}
-		jsonschema.Database.Url = "${DATABASE_URL}"
 		buf, err := json.MarshalIndent(jsonschema, " ", "  ")
 		if err != nil {
 			logger.Fatal("error serializing json: %s", err)
