@@ -5,30 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+
+	"github.com/jhaynie/shift/internal/migrator/types"
+	"github.com/jhaynie/shift/internal/util"
+	"github.com/shopmonkeyus/go-common/logger"
 )
-
-type TableDetail struct {
-	Columns     []ColumnDetail
-	Constraints []ConstraintDetail
-	Description *string
-}
-
-type ColumnDetail struct {
-	Name             string
-	Ordinal          int64
-	Default          *string
-	IsNullable       bool
-	DataType         string
-	UDTName          string
-	MaxLength        *int64
-	NumericPrecision *int64
-	Description      *string
-}
-
-type ConstraintDetail struct {
-	Name string
-	Type string
-}
 
 var infoTablesQuery = `SELECT
 	table_name,
@@ -104,7 +85,7 @@ func generateInfoTableQuery(config *infoQueryConfig) string {
 			tableCatalog = singleQuote(tableCatalog)
 		}
 	}
-	return fmt.Sprintf(infoTablesQuery, override, strings.Join(mapSingleQuote(excludes), ","), tableCatalog)
+	return util.CleanSQL(fmt.Sprintf(infoTablesQuery, override, strings.Join(mapSingleQuote(excludes), ","), tableCatalog))
 }
 
 func generateInfoTableConstraintsQuery(config *infoQueryConfig) string {
@@ -116,7 +97,7 @@ func generateInfoTableConstraintsQuery(config *infoQueryConfig) string {
 			tableCatalog = singleQuote(tableCatalog)
 		}
 	}
-	return fmt.Sprintf(infoConstraintsQuery, strings.Join(mapSingleQuote(excludes), ","), tableCatalog)
+	return util.CleanSQL(fmt.Sprintf(infoConstraintsQuery, strings.Join(mapSingleQuote(excludes), ","), tableCatalog))
 }
 
 func generateDefaultInfoQueryConfig() *infoQueryConfig {
@@ -146,18 +127,18 @@ func WithTableSchemaExcludes(tables []string) WithOption {
 }
 
 // GenerateInfoTables is a utility for generating generic tables from an database that supports the information_schema standard
-func GenerateInfoTables(ctx context.Context, db *sql.DB, opts ...WithOption) (map[string]*TableDetail, error) {
+func GenerateInfoTables(ctx context.Context, logger logger.Logger, db *sql.DB, opts ...WithOption) (map[string]*types.TableDetail, error) {
 	config := generateDefaultInfoQueryConfig()
 	for _, opt := range opts {
 		opt(config)
 	}
 	querysql := generateInfoTableQuery(config)
-	// fmt.Println(">>" + querysql + "<<")
+	logger.Trace("sql: %s", querysql)
 	res, err := db.QueryContext(ctx, querysql)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
-	tables := make(map[string]*TableDetail)
+	tables := make(map[string]*types.TableDetail)
 	if res != nil {
 		defer res.Close()
 		for res.Next() {
@@ -170,13 +151,13 @@ func GenerateInfoTables(ctx context.Context, db *sql.DB, opts ...WithOption) (ma
 			}
 			table := tables[tableName]
 			if table == nil {
-				table = &TableDetail{
-					Columns:     make([]ColumnDetail, 0),
-					Constraints: make([]ConstraintDetail, 0),
+				table = &types.TableDetail{
+					Columns:     make([]types.ColumnDetail, 0),
+					Constraints: make([]types.ConstraintDetail, 0),
 				}
 				tables[tableName] = table
 			}
-			var detail ColumnDetail
+			var detail types.ColumnDetail
 			detail.Name = columnName
 			detail.Ordinal = ordinal
 			if columnDefault.Valid {
@@ -196,7 +177,7 @@ func GenerateInfoTables(ctx context.Context, db *sql.DB, opts ...WithOption) (ma
 	}
 	if len(tables) > 0 {
 		constraintQuery := generateInfoTableConstraintsQuery(config)
-		// fmt.Println(">>" + constraintQuery + "<<")
+		logger.Trace("sql: %s", constraintQuery)
 		cres, err := db.QueryContext(ctx, constraintQuery)
 		if err != nil && err != sql.ErrNoRows {
 			return nil, err
@@ -210,7 +191,7 @@ func GenerateInfoTables(ctx context.Context, db *sql.DB, opts ...WithOption) (ma
 				}
 				table := tables[tablename]
 				if table != nil {
-					table.Constraints = append(table.Constraints, ConstraintDetail{
+					table.Constraints = append(table.Constraints, types.ConstraintDetail{
 						Name: name,
 						Type: ctype,
 					})

@@ -12,7 +12,6 @@ func TestLoadYAML(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, s)
 	assert.Equal(t, "1", s.Version)
-	assert.Equal(t, "postgres", string(s.Database.Driver))
 	assert.Equal(t, "postgres://localhost:5432/db1", s.Database.Url)
 	assert.Len(t, s.Tables, 1)
 	assert.Equal(t, "table1", s.Tables[0].Name)

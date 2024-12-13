@@ -3,13 +3,16 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/jhaynie/shift/internal/schema"
+	"github.com/jhaynie/shift/internal/util"
+	"github.com/shopmonkeyus/go-common/logger"
 )
 
-var tableCommentSQL = `SELECT
+var tableCommentSQL = util.CleanSQL(`SELECT
     c.relname,
-    obj_description(c.oid)
+    COALESCE(obj_description(c.oid), '')
 FROM
     pg_class c
 JOIN
@@ -17,10 +20,12 @@ JOIN
 WHERE
     n.nspname = 'public'
     AND c.relkind = 'r'
-`
+		AND c.oid IS NOT NULL
+`)
 
 // GetTableDescriptions will return a map of table to table comment
-func GetTableDescriptions(ctx context.Context, db *sql.DB) (map[string]string, error) {
+func GetTableDescriptions(ctx context.Context, logger logger.Logger, db *sql.DB) (map[string]string, error) {
+	logger.Trace("sql: %s", tableCommentSQL)
 	res, err := db.QueryContext(ctx, tableCommentSQL)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
@@ -39,10 +44,10 @@ func GetTableDescriptions(ctx context.Context, db *sql.DB) (map[string]string, e
 	return tables, nil
 }
 
-var columnCommentSQL = `SELECT
+var columnCommentSQL = util.CleanSQL(`SELECT
 	col.table_name,
 	col.column_name,
-  pg_catalog.col_description(c.oid, a.attnum)
+  COALESCE(pg_catalog.col_description(c.oid, a.attnum),'')
 FROM
 	information_schema.columns col
 JOIN
@@ -52,10 +57,12 @@ JOIN
 WHERE
 	col.table_schema = 'public'
 	AND a.attnum > 0
-`
+	AND c.oid IS NOT NULL
+`)
 
 // GetColumnDescriptions will return a map of table to a map of column comments
-func GetColumnDescriptions(ctx context.Context, db *sql.DB) (map[string]map[string]string, error) {
+func GetColumnDescriptions(ctx context.Context, logger logger.Logger, db *sql.DB) (map[string]map[string]string, error) {
+	logger.Trace("sql: %s", columnCommentSQL)
 	res, err := db.QueryContext(ctx, columnCommentSQL)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
@@ -81,18 +88,18 @@ func GetColumnDescriptions(ctx context.Context, db *sql.DB) (map[string]map[stri
 }
 
 // see https://www.postgresql.org/docs/current/datatype.html
-func DataTypeToType(val string) schema.SchemaJsonTablesElemColumnsElemType {
+func DataTypeToType(val string) (schema.SchemaJsonTablesElemColumnsElemType, error) {
 	switch val {
 	case "text", "uuid", "json", "jsonb", "xml", "cidr", "bit", "bit varying", "bytea", "character", "character varying", "circle", "inet", "interval", "line", "lseg", "macaddr", "macaddr8", "path", "pg_snapshot", "point", "polygon", "tsquery", "tsvector", "txid_snapshot":
-		return schema.SchemaJsonTablesElemColumnsElemTypeString
+		return schema.SchemaJsonTablesElemColumnsElemTypeString, nil
 	case "integer", "bigint", "bigserial", "pg_lsn", "smallint", "smallserial", "serial":
-		return schema.SchemaJsonTablesElemColumnsElemTypeInt
+		return schema.SchemaJsonTablesElemColumnsElemTypeInt, nil
 	case "real", "double precision", "money", "numeric":
-		return schema.SchemaJsonTablesElemColumnsElemTypeFloat
+		return schema.SchemaJsonTablesElemColumnsElemTypeFloat, nil
 	case "date", "time", "timestamp", "timestamp with time zone", "timestamp without time zone":
-		return schema.SchemaJsonTablesElemColumnsElemTypeDatetime
+		return schema.SchemaJsonTablesElemColumnsElemTypeDatetime, nil
 	case "boolean":
-		return schema.SchemaJsonTablesElemColumnsElemTypeBoolean
+		return schema.SchemaJsonTablesElemColumnsElemTypeBoolean, nil
 	}
-	panic("unhandled data type: " + val)
+	return "", fmt.Errorf("unhandled data type: %s", val)
 }

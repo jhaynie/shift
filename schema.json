@@ -12,11 +12,6 @@
       "type": "object",
       "description": "The database configuration for the migration to use.",
       "properties": {
-        "driver": {
-          "type": "string",
-          "description": "The database driver to use for the migration.",
-          "enum": ["mysql", "postgres", "sqlite"]
-        },
         "url": {
           "type": "string",
           "description": "The database driver URL for connecting to the database.",
@@ -24,7 +19,7 @@
         }
       },
       "additionalProperties": false,
-      "required": ["driver", "url"]
+      "required": ["url"]
     },
     "tables": {
       "type": "array",
@@ -37,6 +32,10 @@
           "name": {
             "type": "string",
             "description": "The name of the table."
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the table."
           },
           "columns": {
             "type": "array",

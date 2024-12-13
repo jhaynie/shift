@@ -3,8 +3,10 @@ package migrator
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/jhaynie/shift/internal/schema"
+	"github.com/shopmonkeyus/go-common/logger"
 )
 
 type MigrateTableChangeType string
@@ -49,15 +51,25 @@ type MigratorCallbackFunc func(changes []MigrateChanges) (bool, error)
 
 type MigratorArgs struct {
 	Context  context.Context
+	Logger   logger.Logger
 	Dir      string
 	Schema   *schema.SchemaJson
 	DB       *sql.DB
 	Callback MigratorCallbackFunc
 }
 
+type ToSchemaArgs struct {
+	Context context.Context
+	Logger  logger.Logger
+	DB      *sql.DB
+}
+
 type Migrator interface {
 	// Migrate will compare the schema against the database and apply any necessary changes.
 	Migrate(args MigratorArgs) error
+
+	// ToSchema is for generating a schema from a database
+	ToSchema(args ToSchemaArgs) (*schema.SchemaJson, error)
 }
 
 var migrators map[string]Migrator
@@ -68,4 +80,20 @@ func Register(protocol string, migrator Migrator) {
 		migrators = make(map[string]Migrator)
 	}
 	migrators[protocol] = migrator
+}
+
+func Migrate(protocol string, args MigratorArgs) error {
+	migrator := migrators[protocol]
+	if migrator == nil {
+		return fmt.Errorf("protocol: %s not supported", protocol)
+	}
+	return migrator.Migrate(args)
+}
+
+func ToSchema(protocol string, args ToSchemaArgs) (*schema.SchemaJson, error) {
+	migrator := migrators[protocol]
+	if migrator == nil {
+		return nil, fmt.Errorf("protocol: %s not supported", protocol)
+	}
+	return migrator.ToSchema(args)
 }

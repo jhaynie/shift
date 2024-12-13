@@ -20,43 +20,8 @@ type SchemaJson struct {
 
 // The database configuration for the migration to use.
 type SchemaJsonDatabase struct {
-	// The database driver to use for the migration.
-	Driver SchemaJsonDatabaseDriver `json:"driver" yaml:"driver" mapstructure:"driver"`
-
 	// The database driver URL for connecting to the database.
 	Url string `json:"url" yaml:"url" mapstructure:"url"`
-}
-
-type SchemaJsonDatabaseDriver string
-
-const SchemaJsonDatabaseDriverMysql SchemaJsonDatabaseDriver = "mysql"
-const SchemaJsonDatabaseDriverPostgres SchemaJsonDatabaseDriver = "postgres"
-const SchemaJsonDatabaseDriverSqlite SchemaJsonDatabaseDriver = "sqlite"
-
-var enumValues_SchemaJsonDatabaseDriver = []interface{}{
-	"mysql",
-	"postgres",
-	"sqlite",
-}
-
-// UnmarshalJSON implements json.Unmarshaler.
-func (j *SchemaJsonDatabaseDriver) UnmarshalJSON(b []byte) error {
-	var v string
-	if err := json.Unmarshal(b, &v); err != nil {
-		return err
-	}
-	var ok bool
-	for _, expected := range enumValues_SchemaJsonDatabaseDriver {
-		if reflect.DeepEqual(v, expected) {
-			ok = true
-			break
-		}
-	}
-	if !ok {
-		return fmt.Errorf("invalid value (expected one of %#v): %#v", enumValues_SchemaJsonDatabaseDriver, v)
-	}
-	*j = SchemaJsonDatabaseDriver(v)
-	return nil
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -64,9 +29,6 @@ func (j *SchemaJsonDatabase) UnmarshalJSON(b []byte) error {
 	var raw map[string]interface{}
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
-	}
-	if _, ok := raw["driver"]; raw != nil && !ok {
-		return fmt.Errorf("field driver in SchemaJsonDatabase: required")
 	}
 	if _, ok := raw["url"]; raw != nil && !ok {
 		return fmt.Errorf("field url in SchemaJsonDatabase: required")
@@ -84,6 +46,9 @@ func (j *SchemaJsonDatabase) UnmarshalJSON(b []byte) error {
 type SchemaJsonTablesElem struct {
 	// The columns to manage in the table.
 	Columns []SchemaJsonTablesElemColumnsElem `json:"columns" yaml:"columns" mapstructure:"columns"`
+
+	// The description of the table.
+	Description *string `json:"description,omitempty" yaml:"description,omitempty" mapstructure:"description,omitempty"`
 
 	// The name of the table.
 	Name string `json:"name" yaml:"name" mapstructure:"name"`

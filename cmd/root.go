@@ -25,7 +25,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/shopmonkeyus/go-common/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -60,6 +62,22 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/config/shift/config.yaml)")
 }
 
+func newLogger(cmd *cobra.Command) logger.Logger {
+	ll, _ := cmd.Flags().GetString("log-level")
+	level := logger.LevelInfo
+	switch strings.ToLower(ll) {
+	case "trace":
+		level = logger.LevelTrace
+	case "error", "fatal":
+		level = logger.LevelError
+	case "warn", "warning":
+		level = logger.LevelWarn
+	case "debug":
+		level = logger.LevelDebug
+	}
+	return logger.NewConsoleLogger(level)
+}
+
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
 	if cfgFile != "" {
@@ -80,7 +98,13 @@ func initConfig() {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err != nil {
-		fmt.Println("Error reading config file:", viper.ConfigFileUsed(), "error:", err)
-		os.Exit(1)
+		if !strings.Contains(err.Error(), "Not Found") {
+			fmt.Println("Error reading config file:", viper.ConfigFileUsed(), "error:", err)
+			os.Exit(1)
+		}
 	}
+}
+
+func init() {
+	rootCmd.PersistentFlags().String("log-level", "info", "the log level")
 }
