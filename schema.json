@@ -57,7 +57,7 @@
                 "type": {
                   "type": "string",
                   "description": "The data type of the column.",
-                  "enum": ["string", "int", "double", "boolean", "datetime"]
+                  "enum": ["string", "int", "float", "boolean", "datetime"]
                 },
                 "subtype": {
                   "type": "string",

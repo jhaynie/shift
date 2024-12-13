@@ -6,7 +6,7 @@ import "encoding/json"
 import "fmt"
 import "reflect"
 
-// The JSON schema for the Shift migration configuration file.
+// The JSON schema for the Shift database configuration file.
 type SchemaJson struct {
 	// The database configuration for the migration to use.
 	Database SchemaJsonDatabase `json:"database" yaml:"database" mapstructure:"database"`
@@ -201,14 +201,14 @@ type SchemaJsonTablesElemColumnsElemType string
 
 const SchemaJsonTablesElemColumnsElemTypeBoolean SchemaJsonTablesElemColumnsElemType = "boolean"
 const SchemaJsonTablesElemColumnsElemTypeDatetime SchemaJsonTablesElemColumnsElemType = "datetime"
-const SchemaJsonTablesElemColumnsElemTypeDouble SchemaJsonTablesElemColumnsElemType = "double"
+const SchemaJsonTablesElemColumnsElemTypeFloat SchemaJsonTablesElemColumnsElemType = "float"
 const SchemaJsonTablesElemColumnsElemTypeInt SchemaJsonTablesElemColumnsElemType = "int"
 const SchemaJsonTablesElemColumnsElemTypeString SchemaJsonTablesElemColumnsElemType = "string"
 
 var enumValues_SchemaJsonTablesElemColumnsElemType = []interface{}{
 	"string",
 	"int",
-	"double",
+	"float",
 	"boolean",
 	"datetime",
 }

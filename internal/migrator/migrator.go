@@ -2,6 +2,7 @@ package migrator
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/jhaynie/shift/internal/schema"
 )
@@ -46,9 +47,17 @@ type MigrateChanges struct {
 // MigratorCallbackFunc takes a list of changes and returns true if the changes should be applied or false to skip.
 type MigratorCallbackFunc func(changes []MigrateChanges) (bool, error)
 
+type MigratorArgs struct {
+	Context  context.Context
+	Dir      string
+	Schema   *schema.SchemaJson
+	DB       *sql.DB
+	Callback MigratorCallbackFunc
+}
+
 type Migrator interface {
 	// Migrate will compare the schema against the database and apply any necessary changes.
-	Migrate(ctx context.Context, dir string, schema *schema.SchemaJson, callback MigratorCallbackFunc) error
+	Migrate(args MigratorArgs) error
 }
 
 var migrators map[string]Migrator
