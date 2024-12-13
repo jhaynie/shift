@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/jhaynie/shift/internal/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,7 +33,8 @@ func TestLoadYAML(t *testing.T) {
 	assert.NotNil(t, s.Tables[0].Columns[1].Type)
 	assert.Equal(t, "int", string(s.Tables[0].Columns[1].Type))
 	assert.NotNil(t, s.Tables[0].Columns[1].Default)
-	assert.Equal(t, "1", string(*s.Tables[0].Columns[1].Default))
+	assert.NotNil(t, s.Tables[0].Columns[1].Default.Postgres)
+	assert.Equal(t, "1", string(*s.Tables[0].Columns[1].Default.Postgres))
 
 	assert.Equal(t, "name", s.Tables[0].Columns[2].Name)
 	assert.Nil(t, s.Tables[0].Columns[2].PrimaryKey)
@@ -63,7 +65,8 @@ func TestLoadYAML(t *testing.T) {
 	assert.NotNil(t, s.Tables[0].Columns[4].Type)
 	assert.Equal(t, "string", string(s.Tables[0].Columns[4].Type))
 	assert.NotNil(t, s.Tables[0].Columns[4].NativeType)
-	assert.Equal(t, "cidr", string(*s.Tables[0].Columns[4].NativeType))
+	assert.NotNil(t, s.Tables[0].Columns[4].NativeType.Postgres)
+	assert.Equal(t, "cidr", string(*s.Tables[0].Columns[4].NativeType.Postgres))
 	assert.Nil(t, s.Tables[0].Columns[4].Default)
 }
 
@@ -79,4 +82,66 @@ func TestLoadJSON(t *testing.T) {
 	b2, err := json.Marshal(s2)
 	assert.NoError(t, err)
 	assert.Equal(t, string(b1), string(b2))
+}
+
+func TestToNativeType(t *testing.T) {
+	assert.Nil(t, ToNativeType(DatabaseDriverPostgres, ""))
+	assert.NotNil(t, ToNativeType(DatabaseDriverPostgres, "1"))
+	assert.NotNil(t, ToNativeType(DatabaseDriverPostgres, "1").Postgres)
+	assert.Equal(t, "1", *ToNativeType(DatabaseDriverPostgres, "1").Postgres)
+
+	assert.Nil(t, ToNativeType(DatabaseDriverSQLite, ""))
+	assert.NotNil(t, ToNativeType(DatabaseDriverSQLite, "1"))
+	assert.NotNil(t, ToNativeType(DatabaseDriverSQLite, "1").Sqlite)
+	assert.Equal(t, "1", *ToNativeType(DatabaseDriverSQLite, "1").Sqlite)
+
+	assert.Nil(t, ToNativeType(DatabaseDriverMysql, ""))
+	assert.NotNil(t, ToNativeType(DatabaseDriverMysql, "1"))
+	assert.NotNil(t, ToNativeType(DatabaseDriverMysql, "1").Mysql)
+	assert.Equal(t, "1", *ToNativeType(DatabaseDriverMysql, "1").Mysql)
+}
+
+func TestToNativeDefault(t *testing.T) {
+	assert.Nil(t, ToNativeDefault(DatabaseDriverPostgres, nil))
+	assert.NotNil(t, ToNativeDefault(DatabaseDriverPostgres, util.Ptr("1")))
+	assert.NotNil(t, ToNativeDefault(DatabaseDriverPostgres, util.Ptr("1")).Postgres)
+	assert.Equal(t, "1", *ToNativeDefault(DatabaseDriverPostgres, util.Ptr("1")).Postgres)
+
+	assert.Nil(t, ToNativeDefault(DatabaseDriverSQLite, nil))
+	assert.NotNil(t, ToNativeDefault(DatabaseDriverSQLite, util.Ptr("1")))
+	assert.NotNil(t, ToNativeDefault(DatabaseDriverSQLite, util.Ptr("1")).Sqlite)
+	assert.Equal(t, "1", *ToNativeDefault(DatabaseDriverSQLite, util.Ptr("1")).Sqlite)
+
+	assert.Nil(t, ToNativeDefault(DatabaseDriverMysql, nil))
+	assert.NotNil(t, ToNativeDefault(DatabaseDriverMysql, util.Ptr("1")))
+	assert.NotNil(t, ToNativeDefault(DatabaseDriverMysql, util.Ptr("1")).Mysql)
+	assert.Equal(t, "1", *ToNativeDefault(DatabaseDriverMysql, util.Ptr("1")).Mysql)
+}
+
+func TestFromNativeType(t *testing.T) {
+	assert.Nil(t, FromNativeType(DatabaseDriverPostgres, nil))
+	assert.NotNil(t, FromNativeType(DatabaseDriverPostgres, &SchemaJsonTablesElemColumnsElemNativeType{Postgres: util.Ptr("1")}))
+	assert.Equal(t, "1", *FromNativeType(DatabaseDriverPostgres, &SchemaJsonTablesElemColumnsElemNativeType{Postgres: util.Ptr("1")}))
+
+	assert.Nil(t, FromNativeType(DatabaseDriverSQLite, nil))
+	assert.NotNil(t, FromNativeType(DatabaseDriverSQLite, &SchemaJsonTablesElemColumnsElemNativeType{Sqlite: util.Ptr("1")}))
+	assert.Equal(t, "1", *FromNativeType(DatabaseDriverSQLite, &SchemaJsonTablesElemColumnsElemNativeType{Sqlite: util.Ptr("1")}))
+
+	assert.Nil(t, FromNativeType(DatabaseDriverMysql, nil))
+	assert.NotNil(t, FromNativeType(DatabaseDriverMysql, &SchemaJsonTablesElemColumnsElemNativeType{Mysql: util.Ptr("1")}))
+	assert.Equal(t, "1", *FromNativeType(DatabaseDriverMysql, &SchemaJsonTablesElemColumnsElemNativeType{Mysql: util.Ptr("1")}))
+}
+
+func TestFromNativeDefault(t *testing.T) {
+	assert.Nil(t, FromNativeDefault(DatabaseDriverPostgres, nil))
+	assert.NotNil(t, FromNativeDefault(DatabaseDriverPostgres, &SchemaJsonTablesElemColumnsElemDefault{Postgres: util.Ptr("1")}))
+	assert.Equal(t, "1", *FromNativeDefault(DatabaseDriverPostgres, &SchemaJsonTablesElemColumnsElemDefault{Postgres: util.Ptr("1")}))
+
+	assert.Nil(t, FromNativeDefault(DatabaseDriverSQLite, nil))
+	assert.NotNil(t, FromNativeDefault(DatabaseDriverSQLite, &SchemaJsonTablesElemColumnsElemDefault{Sqlite: util.Ptr("1")}))
+	assert.Equal(t, "1", *FromNativeDefault(DatabaseDriverSQLite, &SchemaJsonTablesElemColumnsElemDefault{Sqlite: util.Ptr("1")}))
+
+	assert.Nil(t, FromNativeDefault(DatabaseDriverMysql, nil))
+	assert.NotNil(t, FromNativeDefault(DatabaseDriverMysql, &SchemaJsonTablesElemColumnsElemDefault{Mysql: util.Ptr("1")}))
+	assert.Equal(t, "1", *FromNativeDefault(DatabaseDriverMysql, &SchemaJsonTablesElemColumnsElemDefault{Mysql: util.Ptr("1")}))
 }

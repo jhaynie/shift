@@ -58,13 +58,13 @@ type Table struct {
 	Indexes     []Index      // indexes
 }
 
-func createNewColumns(table schema.SchemaJsonTablesElem) []migrator.MigrateColumn {
+func createNewColumns(driver schema.DatabaseDriverType, table schema.SchemaJsonTablesElem) []migrator.MigrateColumn {
 	var res []migrator.MigrateColumn
 	for _, col := range table.Columns {
 		res = append(res, migrator.MigrateColumn{
 			Change: migrator.CreateColumn,
 			Name:   col.Name,
-			Type:   *col.NativeType,
+			Type:   *schema.FromNativeType(driver, col.NativeType),
 		})
 	}
 	return res
@@ -89,7 +89,7 @@ func createNewIndexes(table schema.SchemaJsonTablesElem) []migrator.MigrateIndex
 }
 
 // Diff will take a set of tables and a schema and return a list of changes that need to be applied to the database.
-func Diff(tables map[string]Table, schema *schema.SchemaJson) ([]migrator.MigrateChanges, error) {
+func Diff(tables map[string]Table, driver schema.DatabaseDriverType, schema *schema.SchemaJson) ([]migrator.MigrateChanges, error) {
 	processedTables := make(map[string]bool)
 	var res []migrator.MigrateChanges
 	for _, table := range schema.Tables {
@@ -103,7 +103,7 @@ func Diff(tables map[string]Table, schema *schema.SchemaJson) ([]migrator.Migrat
 			res = append(res, migrator.MigrateChanges{
 				Change:  migrator.CreateTable,
 				Table:   table.Name,
-				Columns: createNewColumns(table),
+				Columns: createNewColumns(driver, table),
 				Indexes: createNewIndexes(table),
 			})
 		}

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/jhaynie/shift/internal/util"
 	"github.com/shopmonkeyus/go-common/logger"
 	"github.com/stretchr/testify/assert"
 )
@@ -146,15 +147,11 @@ func TestGenerateSingleTableWithNullable(t *testing.T) {
 	}
 }
 
-func Ptr[T any](t T) *T {
-	return &t
-}
-
 func TestGenerateSingleTableWithDefault(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
 	defer db.Close()
-	mock.ExpectQuery("SELECT table_name, column_name, ordinal_position, column_default, is_nullable, data_type, character_maximum_length, numeric_precision, udt_name FROM information_schema.columns WHERE table_name IN \\( SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN \\('pg_catalog','information_schema'\\) AND table_catalog = current_database\\(\\) \\) ORDER BY table_name, ordinal_position").WithoutArgs().WillReturnRows(sqlmock.NewRows([]string{"table_name", "column_name", "ordinal_position", "column_default", "is_nullable", "data_type", "character_maximum_length", "numeric_precision", "udt_name"}).AddRow("table", "column", int64(1), Ptr("default"), "YES", "text", nil, nil, "text"))
+	mock.ExpectQuery("SELECT table_name, column_name, ordinal_position, column_default, is_nullable, data_type, character_maximum_length, numeric_precision, udt_name FROM information_schema.columns WHERE table_name IN \\( SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN \\('pg_catalog','information_schema'\\) AND table_catalog = current_database\\(\\) \\) ORDER BY table_name, ordinal_position").WithoutArgs().WillReturnRows(sqlmock.NewRows([]string{"table_name", "column_name", "ordinal_position", "column_default", "is_nullable", "data_type", "character_maximum_length", "numeric_precision", "udt_name"}).AddRow("table", "column", int64(1), util.Ptr("default"), "YES", "text", nil, nil, "text"))
 	mock.ExpectQuery("SELECT constraint_name, table_name, constraint_type FROM information_schema.table_constraints WHERE table_schema NOT IN \\('pg_catalog','information_schema'\\) AND table_catalog = current_database\\(\\) AND constraint_type != 'CHECK' ORDER BY table_name").WithoutArgs().WillReturnError(sql.ErrNoRows)
 	res, err := GenerateInfoTables(context.Background(), logger.NewTestLogger(), db)
 	assert.NoError(t, err)
@@ -181,7 +178,7 @@ func TestGenerateSingleTableWithPrimaryKey(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
 	defer db.Close()
-	mock.ExpectQuery("SELECT table_name, column_name, ordinal_position, column_default, is_nullable, data_type, character_maximum_length, numeric_precision, udt_name FROM information_schema.columns WHERE table_name IN \\( SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN \\('pg_catalog','information_schema'\\) AND table_catalog = current_database\\(\\) \\) ORDER BY table_name, ordinal_position").WithoutArgs().WillReturnRows(sqlmock.NewRows([]string{"table_name", "column_name", "ordinal_position", "column_default", "is_nullable", "data_type", "character_maximum_length", "numeric_precision", "udt_name"}).AddRow("table", "column", int64(1), Ptr("default"), "YES", "text", nil, nil, "text"))
+	mock.ExpectQuery("SELECT table_name, column_name, ordinal_position, column_default, is_nullable, data_type, character_maximum_length, numeric_precision, udt_name FROM information_schema.columns WHERE table_name IN \\( SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN \\('pg_catalog','information_schema'\\) AND table_catalog = current_database\\(\\) \\) ORDER BY table_name, ordinal_position").WithoutArgs().WillReturnRows(sqlmock.NewRows([]string{"table_name", "column_name", "ordinal_position", "column_default", "is_nullable", "data_type", "character_maximum_length", "numeric_precision", "udt_name"}).AddRow("table", "column", int64(1), util.Ptr("default"), "YES", "text", nil, nil, "text"))
 	mock.ExpectQuery("SELECT constraint_name, table_name, constraint_type FROM information_schema.table_constraints WHERE table_schema NOT IN \\('pg_catalog','information_schema'\\) AND table_catalog = current_database\\(\\) AND constraint_type != 'CHECK' ORDER BY table_name").WithoutArgs().WillReturnRows(sqlmock.NewRows([]string{"constraint_name", "table_name", "constraint_type"}).AddRow("table_pk", "table", "PRIMARY KEY"))
 	res, err := GenerateInfoTables(context.Background(), logger.NewTestLogger(), db)
 	assert.NoError(t, err)

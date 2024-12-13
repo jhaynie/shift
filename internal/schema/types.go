@@ -8,6 +8,9 @@ import "reflect"
 
 // The JSON schema for the Shift database configuration file.
 type SchemaJson struct {
+	// The URL to the Shift schema.
+	Schema string `json:"$schema" yaml:"$schema" mapstructure:"$schema"`
+
 	// The database configuration for the migration to use.
 	Database SchemaJsonDatabase `json:"database" yaml:"database" mapstructure:"database"`
 
@@ -20,8 +23,8 @@ type SchemaJson struct {
 
 // The database configuration for the migration to use.
 type SchemaJsonDatabase struct {
-	// The database driver URL for connecting to the database.
-	Url string `json:"url" yaml:"url" mapstructure:"url"`
+	// Url corresponds to the JSON schema field "url".
+	Url interface{} `json:"url" yaml:"url" mapstructure:"url"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -44,7 +47,7 @@ func (j *SchemaJsonDatabase) UnmarshalJSON(b []byte) error {
 
 // The table definition
 type SchemaJsonTablesElem struct {
-	// The columns to manage in the table.
+	// The columns that are part of the table.
 	Columns []SchemaJsonTablesElemColumnsElem `json:"columns" yaml:"columns" mapstructure:"columns"`
 
 	// The description of the table.
@@ -59,8 +62,8 @@ type SchemaJsonTablesElemColumnsElem struct {
 	// Whether the column is auto-incrementing.
 	AutoIncrement *bool `json:"autoIncrement,omitempty" yaml:"autoIncrement,omitempty" mapstructure:"autoIncrement,omitempty"`
 
-	// The default value of the column.
-	Default *string `json:"default,omitempty" yaml:"default,omitempty" mapstructure:"default,omitempty"`
+	// The specific native database default value if no value is provided.
+	Default *SchemaJsonTablesElemColumnsElemDefault `json:"default,omitempty" yaml:"default,omitempty" mapstructure:"default,omitempty"`
 
 	// The description of the column.
 	Description *string `json:"description,omitempty" yaml:"description,omitempty" mapstructure:"description,omitempty"`
@@ -74,8 +77,8 @@ type SchemaJsonTablesElemColumnsElem struct {
 	// The name of the column.
 	Name string `json:"name" yaml:"name" mapstructure:"name"`
 
-	// Specify a specific native database type which overrides the type.
-	NativeType *string `json:"nativeType,omitempty" yaml:"nativeType,omitempty" mapstructure:"nativeType,omitempty"`
+	// The specific native database type which overrides the generic type.
+	NativeType *SchemaJsonTablesElemColumnsElemNativeType `json:"nativeType,omitempty" yaml:"nativeType,omitempty" mapstructure:"nativeType,omitempty"`
 
 	// Whether the column is nullable.
 	Nullable *bool `json:"nullable,omitempty" yaml:"nullable,omitempty" mapstructure:"nullable,omitempty"`
@@ -86,22 +89,46 @@ type SchemaJsonTablesElemColumnsElem struct {
 	// The foreign key reference for the column.
 	References *SchemaJsonTablesElemColumnsElemReferences `json:"references,omitempty" yaml:"references,omitempty" mapstructure:"references,omitempty"`
 
-	// The type subtype of the column.
+	// The generic subtype of the column.
 	Subtype *SchemaJsonTablesElemColumnsElemSubtype `json:"subtype,omitempty" yaml:"subtype,omitempty" mapstructure:"subtype,omitempty"`
 
-	// The data type of the column.
+	// The generic data type of the column.
 	Type SchemaJsonTablesElemColumnsElemType `json:"type" yaml:"type" mapstructure:"type"`
 
 	// Whether the column is unique.
 	Unique *bool `json:"unique,omitempty" yaml:"unique,omitempty" mapstructure:"unique,omitempty"`
 }
 
+// The specific native database default value if no value is provided.
+type SchemaJsonTablesElemColumnsElemDefault struct {
+	// The native MySQL default value.
+	Mysql *string `json:"mysql,omitempty" yaml:"mysql,omitempty" mapstructure:"mysql,omitempty"`
+
+	// The native Postgres default value.
+	Postgres *string `json:"postgres,omitempty" yaml:"postgres,omitempty" mapstructure:"postgres,omitempty"`
+
+	// The native SQLite default value.
+	Sqlite *string `json:"sqlite,omitempty" yaml:"sqlite,omitempty" mapstructure:"sqlite,omitempty"`
+}
+
+// The specific native database type which overrides the generic type.
+type SchemaJsonTablesElemColumnsElemNativeType struct {
+	// The native MySQL data type.
+	Mysql *string `json:"mysql,omitempty" yaml:"mysql,omitempty" mapstructure:"mysql,omitempty"`
+
+	// The native Postgres data type.
+	Postgres *string `json:"postgres,omitempty" yaml:"postgres,omitempty" mapstructure:"postgres,omitempty"`
+
+	// The native SQLite data type.
+	Sqlite *string `json:"sqlite,omitempty" yaml:"sqlite,omitempty" mapstructure:"sqlite,omitempty"`
+}
+
 // The foreign key reference for the column.
 type SchemaJsonTablesElemColumnsElemReferences struct {
-	// The column the column references.
+	// The foreign column the column references.
 	Column string `json:"column" yaml:"column" mapstructure:"column"`
 
-	// The table the column references.
+	// The foreign table the column references.
 	Table string `json:"table" yaml:"table" mapstructure:"table"`
 }
 
@@ -251,6 +278,9 @@ func (j *SchemaJson) UnmarshalJSON(b []byte) error {
 	var raw map[string]interface{}
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
+	}
+	if _, ok := raw["$schema"]; raw != nil && !ok {
+		return fmt.Errorf("field $schema in SchemaJson: required")
 	}
 	if _, ok := raw["database"]; raw != nil && !ok {
 		return fmt.Errorf("field database in SchemaJson: required")

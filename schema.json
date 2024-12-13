@@ -4,6 +4,11 @@
   "title": "Shift Database Schema",
   "type": "object",
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The URL to the Shift schema.",
+      "format": "uri"
+    },
     "version": {
       "type": "string",
       "description": "The version of the Shift configuration file."
@@ -13,9 +18,18 @@
       "description": "The database configuration for the migration to use.",
       "properties": {
         "url": {
-          "type": "string",
-          "description": "The database driver URL for connecting to the database.",
-          "format": "uri"
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "The database driver URL for connecting to the database.",
+              "format": "uri"
+            },
+            {
+              "type": "string",
+              "description": "The environment variable containing the database driver URL for connecting to the database.",
+              "pattern": "^\\$\\{.*\\}$"
+            }
+          ]
         }
       },
       "additionalProperties": false,
@@ -39,7 +53,7 @@
           },
           "columns": {
             "type": "array",
-            "description": "The columns to manage in the table.",
+            "description": "The columns that are part of the table.",
             "items": {
               "type": "object",
               "description": "The column definition",
@@ -55,17 +69,36 @@
                 },
                 "type": {
                   "type": "string",
-                  "description": "The data type of the column.",
+                  "description": "The generic data type of the column.",
                   "enum": ["string", "int", "float", "boolean", "datetime"]
                 },
                 "subtype": {
                   "type": "string",
-                  "description": "The type subtype of the column.",
+                  "description": "The generic subtype of the column.",
                   "enum": ["json", "array", "binary", "bit", "uuid"]
                 },
                 "nativeType": {
-                  "type": "string",
-                  "description": "Specify a specific native database type which overrides the type."
+                  "type": "object",
+                  "description": "The specific native database type which overrides the generic type.",
+                  "oneOf": [
+                    { "required": ["postgres"] },
+                    { "required": ["sqlite"] },
+                    { "required": ["mysql"] }
+                  ],
+                  "properties": {
+                    "postgres": {
+                      "type": "string",
+                      "description": "The native Postgres data type."
+                    },
+                    "sqlite": {
+                      "type": "string",
+                      "description": "The native SQLite data type."
+                    },
+                    "mysql": {
+                      "type": "string",
+                      "description": "The native MySQL data type."
+                    }
+                  }
                 },
                 "length": {
                   "type": "integer",
@@ -78,8 +111,27 @@
                   "description": "Whether the column is nullable."
                 },
                 "default": {
-                  "type": "string",
-                  "description": "The default value of the column."
+                  "type": "object",
+                  "description": "The specific native database default value if no value is provided.",
+                  "oneOf": [
+                    { "required": ["postgres"] },
+                    { "required": ["sqlite"] },
+                    { "required": ["mysql"] }
+                  ],
+                  "properties": {
+                    "postgres": {
+                      "type": "string",
+                      "description": "The native Postgres default value."
+                    },
+                    "sqlite": {
+                      "type": "string",
+                      "description": "The native SQLite default value."
+                    },
+                    "mysql": {
+                      "type": "string",
+                      "description": "The native MySQL default value."
+                    }
+                  }
                 },
                 "autoIncrement": {
                   "type": "boolean",
@@ -104,11 +156,11 @@
                   "properties": {
                     "table": {
                       "type": "string",
-                      "description": "The table the column references."
+                      "description": "The foreign table the column references."
                     },
                     "column": {
                       "type": "string",
-                      "description": "The column the column references."
+                      "description": "The foreign column the column references."
                     }
                   },
                   "required": ["table", "column"]
@@ -125,7 +177,7 @@
       "minItems": 1
     }
   },
-  "required": ["version", "database", "tables"],
+  "required": ["$schema", "version", "database", "tables"],
   "description": "The JSON schema for the Shift database configuration file.",
   "additionalProperties": false
 }

@@ -2,7 +2,6 @@
   "$schema": "../../schema.json",
   "version": "1",
   "database": {
-    "driver": "postgres",
     "url": "postgres://localhost:5432/db1"
   },
   "tables": [
@@ -18,7 +17,7 @@
         {
           "name": "count",
           "type": "int",
-          "default": "1",
+          "default": { "postgres": "1" },
           "description": "This is a description of count"
         },
         {
@@ -36,7 +35,7 @@
         {
           "name": "ip_address",
           "type": "string",
-          "nativeType": "cidr",
+          "nativeType": { "postgres": "cidr" },
           "description": "This is a description of ip_address"
         }
       ]

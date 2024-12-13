@@ -56,7 +56,7 @@ var generateSchemaCmd = &cobra.Command{
 			logger.Fatal("Unable to connect to database: %v", err)
 		}
 		defer db.Close()
-		schema, err := migrator.ToSchema(protocol, migrator.ToSchemaArgs{
+		jsonschema, err := migrator.ToSchema(protocol, migrator.ToSchemaArgs{
 			Context: context.Background(),
 			DB:      db,
 			Logger:  logger,
@@ -64,7 +64,8 @@ var generateSchemaCmd = &cobra.Command{
 		if err != nil {
 			logger.Fatal("error generating schema: %s", err)
 		}
-		buf, err := json.MarshalIndent(schema, " ", " ")
+		jsonschema.Database.Url = "${DATABASE_URL}"
+		buf, err := json.MarshalIndent(jsonschema, " ", "  ")
 		if err != nil {
 			logger.Fatal("error serializing json: %s", err)
 		}

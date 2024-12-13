@@ -10,7 +10,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var DefaultVersion = "1"
+const (
+	DefaultVersion = "1"
+	DefaultSchema  = "https://raw.githubusercontent.com/jhaynie/shift/refs/heads/main/schema.json"
+)
 
 var nameRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 

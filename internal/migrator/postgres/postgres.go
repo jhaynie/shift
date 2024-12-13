@@ -56,7 +56,7 @@ func (p *PostgresMigrator) ToSchema(args migrator.ToSchemaArgs) (*schema.SchemaJ
 			detail.Columns[i] = column
 		}
 	}
-	return schema.GenerateSchemaJsonFromInfoTables(args.Logger, tables)
+	return schema.GenerateSchemaJsonFromInfoTables(args.Logger, schema.DatabaseDriverPostgres, tables)
 }
 
 func init() {
