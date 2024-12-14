@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/jhaynie/shift/internal/migrator/types"
 	"github.com/jhaynie/shift/internal/schema"
@@ -34,8 +35,8 @@ WHERE
 		AND c.oid IS NOT NULL
 `)
 
-// GetTableDescriptions will return a map of table to table comment
-func GetTableDescriptions(ctx context.Context, logger logger.Logger, db *sql.DB) (map[string]string, error) {
+// getTableDescriptions will return a map of table to table comment
+func getTableDescriptions(ctx context.Context, logger logger.Logger, db *sql.DB) (map[string]string, error) {
 	res, err := execute(ctx, logger, db, tableCommentSQL)
 	if err != nil {
 		return nil, err
@@ -70,8 +71,8 @@ WHERE
 	AND c.oid IS NOT NULL
 `)
 
-// GetColumnDescriptions will return a map of table to a map of column comments
-func GetColumnDescriptions(ctx context.Context, logger logger.Logger, db *sql.DB) (map[string]map[string]string, error) {
+// getColumnDescriptions will return a map of table to a map of column comments
+func getColumnDescriptions(ctx context.Context, logger logger.Logger, db *sql.DB) (map[string]map[string]string, error) {
 	res, err := execute(ctx, logger, db, columnCommentSQL)
 	if err != nil {
 		return nil, err
@@ -97,7 +98,7 @@ func GetColumnDescriptions(ctx context.Context, logger logger.Logger, db *sql.DB
 }
 
 // see https://www.postgresql.org/docs/current/datatype.html
-func DataTypeToType(val string, nativeType string) (schema.SchemaJsonTablesElemColumnsElemType, bool, error) {
+func dataTypeToType(val string, nativeType string) (schema.SchemaJsonTablesElemColumnsElemType, bool, error) {
 	switch val {
 	case "text", "uuid", "json", "jsonb", "xml", "cidr", "bit", "bit varying", "bytea", "character", "character varying", "circle", "inet", "interval", "line", "lseg", "macaddr", "macaddr8", "path", "pg_snapshot", "point", "polygon", "tsquery", "tsvector", "txid_snapshot":
 		return schema.SchemaJsonTablesElemColumnsElemTypeString, false, nil
@@ -114,7 +115,7 @@ func DataTypeToType(val string, nativeType string) (schema.SchemaJsonTablesElemC
 		if dt[0:1] == "_" {
 			dt = dt[1:]
 		}
-		r, _, err := DataTypeToType(dt, "")
+		r, _, err := dataTypeToType(dt, "")
 		return r, true, err
 	}
 	return "", false, fmt.Errorf("unhandled data type: %s", val)
@@ -134,8 +135,8 @@ WHERE
   	AND table_catalog = current_database() 
 	)`)
 
-// GetTableAutoIncrements returns a map of table to column of those columns which are auto incrementing
-func GetTableAutoIncrements(ctx context.Context, logger logger.Logger, db *sql.DB) (map[string]map[string]bool, error) {
+// getTableAutoIncrements returns a map of table to column of those columns which are auto incrementing
+func getTableAutoIncrements(ctx context.Context, logger logger.Logger, db *sql.DB) (map[string]map[string]bool, error) {
 	res, err := execute(ctx, logger, db, tableIdentitySQL)
 	if err != nil {
 		return nil, err
@@ -223,7 +224,7 @@ func ToNativeType(column schema.SchemaJsonTablesElemColumnsElem) *schema.SchemaJ
 	return nil
 }
 
-func ToUDTName(column types.ColumnDetail) (string, bool) {
+func toUDTName(column types.ColumnDetail) (string, bool) {
 	val := column.UDTName
 	if column.MaxLength != nil && *column.MaxLength > 0 {
 		val = column.UDTName + fmt.Sprintf("(%d)", *column.MaxLength)
@@ -254,4 +255,22 @@ func ToUDTName(column types.ColumnDetail) (string, bool) {
 		return val[1:] + "[]", true
 	}
 	return val, false
+}
+
+func dequote(val *string) *string {
+	if val != nil && *val != "" {
+		s := *val
+		if s[0:1] == "'" {
+			return util.Ptr(s[1 : len(s)-1])
+		}
+	}
+	return val
+}
+
+func formatDefault(val *string) *string {
+	if val != nil && *val != "" && strings.HasSuffix(*val, "::jsonb") {
+		s := *val
+		val = util.Ptr(s[0 : len(s)-7])
+	}
+	return dequote(val)
 }

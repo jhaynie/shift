@@ -210,6 +210,7 @@ type TableGenerator interface {
 	QuoteTable(val string) string
 	QuoteColumn(val string) string
 	QuoteLiteral(val string) string
+	QuoteDefaultValue(val string, column types.ColumnDetail) string
 	GenerateTableComment(table string, val string) string
 	GenerateColumnComment(table string, column string, val string) string
 }
@@ -235,10 +236,7 @@ func GenerateCreateStatement(name string, table types.TableDetail, generator Tab
 			attrs = append(attrs, "NOT NULL")
 		}
 		if column.Default != nil {
-			val := *column.Default
-			if column.DataType == "string" && !strings.Contains(val, "(") && val[0:1] != "'" {
-				val = generator.QuoteLiteral(val)
-			}
+			val := generator.QuoteDefaultValue(*column.Default, column)
 			attrs = append(attrs, "DEFAULT "+val)
 		}
 		if column.IsUnique && len(unique) <= 1 {

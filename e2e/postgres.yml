@@ -60,6 +60,11 @@ tables:
       - name: json
         type: string
         subtype: json
+      - name: jsondef
+        type: string
+        subtype: json
+        default:
+          postgres: '{"a":"b"}'
       - name: bool
         type: boolean
       - name: intarr

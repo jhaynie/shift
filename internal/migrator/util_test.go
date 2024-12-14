@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -221,6 +222,13 @@ func (g *noOpGenerator) QuoteColumn(val string) string {
 
 func (g *noOpGenerator) QuoteLiteral(val string) string {
 	return `'` + val + `'`
+}
+
+func (p *noOpGenerator) QuoteDefaultValue(val string, column types.ColumnDetail) string {
+	if column.DataType == "string" && !strings.Contains(val, "(") && val[0:1] != "'" {
+		val = p.QuoteLiteral(val)
+	}
+	return val
 }
 
 func (g *noOpGenerator) GenerateTableComment(table string, val string) string {

@@ -10,7 +10,7 @@ import (
 )
 
 func assertColumnDetail(t *testing.T, expectType string, expectArray bool, detail types.ColumnDetail) {
-	val, isArray := ToUDTName(detail)
+	val, isArray := toUDTName(detail)
 	assert.Equal(t, expectType, val)
 	assert.Equal(t, expectArray, isArray)
 }
@@ -75,7 +75,7 @@ func TestToNativeTypeArray(t *testing.T) {
 }
 
 func assertDataTypeToType(t *testing.T, thetype string, nativeType string, expectType schema.SchemaJsonTablesElemColumnsElemType, expectArray bool) {
-	res, array, err := DataTypeToType(thetype, nativeType)
+	res, array, err := dataTypeToType(thetype, nativeType)
 	assert.NoError(t, err)
 	assert.Equal(t, expectArray, array)
 	assert.Equal(t, expectType, res)
@@ -137,4 +137,9 @@ func TestDataTypeToType(t *testing.T) {
 
 	assertDataTypeToType(t, "ARRAY", "_boolean", schema.SchemaJsonTablesElemColumnsElemTypeBoolean, true)
 	assertDataTypeToType(t, "ARRAY", "boolean", schema.SchemaJsonTablesElemColumnsElemTypeBoolean, true)
+}
+
+func TestFormatDefault(t *testing.T) {
+	assert.NotNil(t, formatDefault(util.Ptr("foo")))
+	assert.Equal(t, "foo", *formatDefault(util.Ptr("'foo'::jsonb")))
 }

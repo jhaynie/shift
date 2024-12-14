@@ -3,6 +3,7 @@ package postgres
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/jhaynie/shift/internal/migrator"
 	"github.com/jhaynie/shift/internal/migrator/types"
@@ -24,15 +25,15 @@ func (p *PostgresMigrator) ToSchema(args migrator.ToSchemaArgs) (*schema.SchemaJ
 	if err != nil {
 		return nil, fmt.Errorf("error generating table schema: %w", err)
 	}
-	tableComments, err := GetTableDescriptions(args.Context, args.Logger, args.DB)
+	tableComments, err := getTableDescriptions(args.Context, args.Logger, args.DB)
 	if err != nil {
 		return nil, fmt.Errorf("error generating table descriptions: %w", err)
 	}
-	columnComments, err := GetColumnDescriptions(args.Context, args.Logger, args.DB)
+	columnComments, err := getColumnDescriptions(args.Context, args.Logger, args.DB)
 	if err != nil {
 		return nil, fmt.Errorf("error generating column descriptions: %w", err)
 	}
-	autoIncrements, err := GetTableAutoIncrements(args.Context, args.Logger, args.DB)
+	autoIncrements, err := getTableAutoIncrements(args.Context, args.Logger, args.DB)
 	if err != nil {
 		return nil, fmt.Errorf("error generating column auto increments: %w", err)
 	}
@@ -49,14 +50,12 @@ func (p *PostgresMigrator) ToSchema(args migrator.ToSchemaArgs) (*schema.SchemaJ
 			}
 		}
 		for i, column := range detail.Columns {
-			fmt.Println(column.Name, column.DataType, column.UDTName)
-			dt, _, err := DataTypeToType(column.DataType, column.UDTName)
+			dt, _, err := dataTypeToType(column.DataType, column.UDTName)
 			if err != nil {
 				return nil, fmt.Errorf("error converting column %s with table: %s. %s", column.Name, table, err)
 			}
 			column.DataType = string(dt)
-			column.UDTName, column.IsArray = ToUDTName(column)
-			fmt.Println(column.Name, column.IsArray, column.DataType, column.UDTName)
+			column.UDTName, column.IsArray = toUDTName(column)
 			for _, constraint := range detail.Constraints {
 				if constraint.Type == "PRIMARY KEY" {
 					column.IsPrimaryKey = true
@@ -68,6 +67,7 @@ func (p *PostgresMigrator) ToSchema(args migrator.ToSchemaArgs) (*schema.SchemaJ
 					column.IsAutoIncrementing = true
 				}
 			}
+			column.Default = formatDefault(column.Default)
 			detail.Columns[i] = column
 		}
 	}
@@ -106,6 +106,16 @@ func (p *PostgresMigrator) QuoteColumn(val string) string {
 
 func (p *PostgresMigrator) QuoteLiteral(val string) string {
 	return quoteValue(val)
+}
+
+func (p *PostgresMigrator) QuoteDefaultValue(val string, column types.ColumnDetail) string {
+	if column.DataType == "string" && !strings.Contains(val, "(") && val[0:1] != "'" {
+		val = p.QuoteLiteral(val)
+	}
+	if column.DataType == "string" && column.UDTName == "jsonb" && !strings.Contains(val, "(") && !strings.HasSuffix(val, "::jsonb") {
+		val += "::jsonb"
+	}
+	return val
 }
 
 func (p *PostgresMigrator) GenerateTableComment(table string, val string) string {
