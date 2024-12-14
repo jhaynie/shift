@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 
+	"github.com/jhaynie/shift/internal/migrator/types"
 	"github.com/jhaynie/shift/internal/schema"
 	"github.com/jhaynie/shift/internal/util"
 	"github.com/shopmonkeyus/go-common/logger"
@@ -148,4 +150,74 @@ func GetTableAutoIncrements(ctx context.Context, logger logger.Logger, db *sql.D
 		}
 	}
 	return tables, nil
+}
+
+func ToNativeType(column schema.SchemaJsonTablesElemColumnsElem) *schema.SchemaJsonTablesElemColumnsElemNativeType {
+	if column.NativeType != nil && column.NativeType.Postgres != nil {
+		return column.NativeType
+	}
+	switch column.Type {
+	case schema.SchemaJsonTablesElemColumnsElemTypeBoolean:
+		return schema.ToNativeType(schema.DatabaseDriverPostgres, "boolean")
+	case schema.SchemaJsonTablesElemColumnsElemTypeDatetime:
+		return schema.ToNativeType(schema.DatabaseDriverPostgres, "timestamp with time zone")
+	case schema.SchemaJsonTablesElemColumnsElemTypeFloat:
+		return schema.ToNativeType(schema.DatabaseDriverPostgres, "double precision")
+	case schema.SchemaJsonTablesElemColumnsElemTypeInt:
+		if column.MaxLength != nil && *column.MaxLength > 0 {
+			return schema.ToNativeType(schema.DatabaseDriverPostgres, fmt.Sprintf("numeric(%d)", *column.MaxLength))
+		}
+		if column.Length != nil {
+			if column.Length.Scale != nil {
+				return schema.ToNativeType(schema.DatabaseDriverPostgres, fmt.Sprintf("numeric(%d,%s)", column.Length.Precision, strconv.FormatFloat(*column.Length.Scale, 'f', 0, 32)))
+			}
+			return schema.ToNativeType(schema.DatabaseDriverPostgres, fmt.Sprintf("numeric(%d)", column.Length.Precision))
+		}
+		return schema.ToNativeType(schema.DatabaseDriverPostgres, "bigint")
+	case schema.SchemaJsonTablesElemColumnsElemTypeString:
+		if column.Subtype != nil {
+			switch *column.Subtype {
+			case schema.SchemaJsonTablesElemColumnsElemSubtypeArray:
+				// TODO
+			case schema.SchemaJsonTablesElemColumnsElemSubtypeBinary:
+				return schema.ToNativeType(schema.DatabaseDriverPostgres, "bytea")
+			case schema.SchemaJsonTablesElemColumnsElemSubtypeBit:
+				return schema.ToNativeType(schema.DatabaseDriverPostgres, "bit")
+			case schema.SchemaJsonTablesElemColumnsElemSubtypeJson:
+				return schema.ToNativeType(schema.DatabaseDriverPostgres, "jsonb")
+			case schema.SchemaJsonTablesElemColumnsElemSubtypeUuid:
+				return schema.ToNativeType(schema.DatabaseDriverPostgres, "uuid")
+			}
+		}
+		if column.MaxLength != nil && *column.MaxLength > 0 {
+			return schema.ToNativeType(schema.DatabaseDriverPostgres, fmt.Sprintf("varchar(%d)", *column.MaxLength))
+		}
+		return schema.ToNativeType(schema.DatabaseDriverPostgres, "text")
+	}
+	return nil
+}
+
+func ToUDTName(column types.ColumnDetail) string {
+	if column.MaxLength != nil && *column.MaxLength > 0 {
+		return column.UDTName + fmt.Sprintf("(%d)", *column.MaxLength)
+	} else if column.NumericPrecision != nil {
+		if column.DataType == "int" && (*column.NumericPrecision == 64 || *column.NumericPrecision == 32) && (column.NumericScale == nil || *column.NumericScale == 0) {
+			// this is a normal int
+		} else if column.DataType == "float" && (*column.NumericPrecision == 64 || *column.NumericPrecision == 24) && (column.NumericScale == nil || *column.NumericScale == 0) {
+			// this is a normal float
+		} else {
+			if column.DataType == "float" && column.UDTName == "float8" && column.NumericScale == nil && *column.NumericPrecision == 53 {
+				// this is double precision type
+				return "double precision"
+			} else {
+				// this is an abitrary number
+				if column.NumericScale != nil {
+					return column.UDTName + fmt.Sprintf("(%d,%d)", *column.NumericPrecision, *column.NumericScale)
+				} else {
+					return column.UDTName + fmt.Sprintf("(%d)", *column.NumericPrecision)
+				}
+			}
+		}
+	}
+	return column.UDTName
 }

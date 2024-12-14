@@ -14,6 +14,7 @@ type ColumnDetail struct {
 	UDTName            string
 	MaxLength          *int64
 	NumericPrecision   *int64
+	NumericScale       *int64
 	Description        *string
 	IsNullable         bool
 	IsPrimaryKey       bool

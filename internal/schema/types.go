@@ -71,6 +71,9 @@ type SchemaJsonTablesElemColumnsElem struct {
 	// Whether the column is indexed.
 	Index *bool `json:"index,omitempty" yaml:"index,omitempty" mapstructure:"index,omitempty"`
 
+	// The exact length for a number type.
+	Length *SchemaJsonTablesElemColumnsElemLength `json:"length,omitempty" yaml:"length,omitempty" mapstructure:"length,omitempty"`
+
 	// The max length of the column.
 	MaxLength *int `json:"maxLength,omitempty" yaml:"maxLength,omitempty" mapstructure:"maxLength,omitempty"`
 
@@ -109,6 +112,45 @@ type SchemaJsonTablesElemColumnsElemDefault struct {
 
 	// The native SQLite default value.
 	Sqlite *string `json:"sqlite,omitempty" yaml:"sqlite,omitempty" mapstructure:"sqlite,omitempty"`
+}
+
+// The exact length for a number type.
+type SchemaJsonTablesElemColumnsElemLength struct {
+	// Precision corresponds to the JSON schema field "precision".
+	Precision int `json:"precision" yaml:"precision" mapstructure:"precision"`
+
+	// Scale corresponds to the JSON schema field "scale".
+	Scale *float64 `json:"scale,omitempty" yaml:"scale,omitempty" mapstructure:"scale,omitempty"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *SchemaJsonTablesElemColumnsElemLength) UnmarshalJSON(b []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["precision"]; raw != nil && !ok {
+		return fmt.Errorf("field precision in SchemaJsonTablesElemColumnsElemLength: required")
+	}
+	type Plain SchemaJsonTablesElemColumnsElemLength
+	var plain Plain
+	if err := json.Unmarshal(b, &plain); err != nil {
+		return err
+	}
+	if 1000 < plain.Precision {
+		return fmt.Errorf("field %s: must be <= %v", "precision", 1000)
+	}
+	if 1 > plain.Precision {
+		return fmt.Errorf("field %s: must be >= %v", "precision", 1)
+	}
+	if plain.Scale != nil && 1000 < *plain.Scale {
+		return fmt.Errorf("field %s: must be <= %v", "scale", 1000)
+	}
+	if plain.Scale != nil && -1000 > *plain.Scale {
+		return fmt.Errorf("field %s: must be >= %v", "scale", -1000)
+	}
+	*j = SchemaJsonTablesElemColumnsElemLength(plain)
+	return nil
 }
 
 // The specific native database type which overrides the generic type.

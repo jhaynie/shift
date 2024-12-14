@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 
 	"github.com/jhaynie/shift/internal/schema"
 	"github.com/shopmonkeyus/go-common/logger"
@@ -68,8 +69,11 @@ type Migrator interface {
 	// Migrate will compare the schema against the database and apply any necessary changes.
 	Migrate(args MigratorArgs) error
 
-	// ToSchema is for generating a schema from a database
+	// ToSchema is for generating a schema from a database.
 	ToSchema(args ToSchemaArgs) (*schema.SchemaJson, error)
+
+	// FromSchema is for generating a set of SQL from a schema (regardless of the targets current schema).
+	FromSchema(schema *schema.SchemaJson, out io.Writer) error
 }
 
 var migrators map[string]Migrator
@@ -96,4 +100,12 @@ func ToSchema(protocol string, args ToSchemaArgs) (*schema.SchemaJson, error) {
 		return nil, fmt.Errorf("protocol: %s not supported", protocol)
 	}
 	return migrator.ToSchema(args)
+}
+
+func FromSchema(protocol string, schema *schema.SchemaJson, out io.Writer) error {
+	migrator := migrators[protocol]
+	if migrator == nil {
+		return fmt.Errorf("protocol: %s not supported", protocol)
+	}
+	return migrator.FromSchema(schema, out)
 }

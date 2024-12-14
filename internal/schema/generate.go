@@ -1,6 +1,8 @@
 package schema
 
 import (
+	"fmt"
+
 	"github.com/jhaynie/shift/internal/migrator/types"
 	"github.com/jhaynie/shift/internal/util"
 	"github.com/shopmonkeyus/go-common/logger"
@@ -95,9 +97,54 @@ func GenerateSchemaJsonFromInfoTables(logger logger.Logger, driver DatabaseDrive
 			if column.MaxLength != nil && *column.MaxLength > 0 {
 				col.MaxLength = util.Ptr(int(*column.MaxLength))
 			}
+			if column.NumericPrecision != nil && *column.NumericPrecision > 0 {
+				col.Length = &SchemaJsonTablesElemColumnsElemLength{
+					Precision: int(*column.NumericPrecision),
+				}
+				if column.NumericScale != nil && *column.NumericScale != 0 {
+					col.Length.Scale = util.Ptr(float64(*column.NumericScale))
+				}
+			}
 			elem.Columns[i] = col
 		}
 		schemaJson.Tables = append(schemaJson.Tables, elem)
 	}
 	return &schemaJson, nil
+}
+
+func SchemaColumnToColumn(driver DatabaseDriverType, column SchemaJsonTablesElemColumnsElem, ordinal int, nativeType *SchemaJsonTablesElemColumnsElemNativeType) (*types.ColumnDetail, error) {
+	var detail types.ColumnDetail
+	detail.Name = column.Name
+	detail.DataType = string(column.Type)
+	nt := FromNativeType(driver, nativeType)
+	if nt != nil {
+		detail.UDTName = *nt
+	} else {
+		return nil, fmt.Errorf("error generating native type for column %s", column.Name)
+	}
+	detail.Default = FromNativeDefault(driver, column.Default)
+	detail.Description = column.Description
+	if column.AutoIncrement != nil {
+		detail.IsAutoIncrementing = *column.AutoIncrement
+	}
+	if column.Nullable != nil {
+		detail.IsNullable = *column.Nullable
+	}
+	if column.PrimaryKey != nil {
+		detail.IsPrimaryKey = *column.PrimaryKey
+	}
+	if column.Unique != nil {
+		detail.IsUnique = *column.Unique
+	}
+	if column.MaxLength != nil && *column.MaxLength > 0 {
+		detail.MaxLength = util.Ptr(int64(*column.MaxLength))
+	}
+	if column.Length != nil {
+		detail.NumericPrecision = util.Ptr(int64(column.Length.Precision))
+		if column.Length.Scale != nil && *column.Length.Scale != 0 {
+			detail.NumericScale = util.Ptr(int64(*column.Length.Scale))
+		}
+	}
+	detail.Ordinal = int64(ordinal)
+	return &detail, nil
 }

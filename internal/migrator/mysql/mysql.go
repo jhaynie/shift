@@ -1,6 +1,8 @@
 package mysql
 
 import (
+	"io"
+
 	"github.com/jhaynie/shift/internal/migrator"
 	"github.com/jhaynie/shift/internal/schema"
 )
@@ -16,6 +18,10 @@ func (p *MysqlMigrator) Migrate(args migrator.MigratorArgs) error {
 
 func (p *MysqlMigrator) ToSchema(args migrator.ToSchemaArgs) (*schema.SchemaJson, error) {
 	return nil, nil
+}
+
+func (p *MysqlMigrator) FromSchema(schema *schema.SchemaJson, out io.Writer) error {
+	return nil
 }
 
 func init() {

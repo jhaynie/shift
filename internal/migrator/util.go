@@ -20,6 +20,7 @@ var infoTablesQuery = `SELECT
 	data_type,
 	character_maximum_length,
 	numeric_precision,
+	numeric_scale,
 	udt_name
 FROM
 	information_schema.columns
@@ -144,9 +145,9 @@ func GenerateInfoTables(ctx context.Context, logger logger.Logger, db *sql.DB, o
 		for res.Next() {
 			var tableName, columnName, dataType, nullable, udtName string
 			var columnDefault sql.NullString
-			var maxLength, numericPrecision sql.NullInt64
+			var maxLength, numericPrecision, numericScale sql.NullInt64
 			var ordinal int64
-			if err := res.Scan(&tableName, &columnName, &ordinal, &columnDefault, &nullable, &dataType, &maxLength, &numericPrecision, &udtName); err != nil {
+			if err := res.Scan(&tableName, &columnName, &ordinal, &columnDefault, &nullable, &dataType, &maxLength, &numericPrecision, &numericScale, &udtName); err != nil {
 				return nil, err
 			}
 			table := tables[tableName]
@@ -171,6 +172,9 @@ func GenerateInfoTables(ctx context.Context, logger logger.Logger, db *sql.DB, o
 			}
 			if numericPrecision.Valid {
 				detail.NumericPrecision = &numericPrecision.Int64
+			}
+			if numericScale.Valid {
+				detail.NumericScale = &numericScale.Int64
 			}
 			table.Columns = append(table.Columns, detail)
 		}
@@ -200,4 +204,72 @@ func GenerateInfoTables(ctx context.Context, logger logger.Logger, db *sql.DB, o
 		}
 	}
 	return tables, nil
+}
+
+type TableGenerator interface {
+	QuoteTable(val string) string
+	QuoteColumn(val string) string
+	QuoteLiteral(val string) string
+	GenerateTableComment(table string, val string) string
+	GenerateColumnComment(table string, column string, val string) string
+}
+
+func GenerateCreateStatement(name string, table types.TableDetail, generator TableGenerator) string {
+	var sql strings.Builder
+	sql.WriteString("CREATE TABLE IF NOT EXISTS ")
+	sql.WriteString(generator.QuoteTable(name))
+	sql.WriteString(" (\n")
+	var unique []string
+	for _, column := range table.Columns {
+		if column.IsUnique {
+			unique = append(unique, column.Name)
+		}
+	}
+	for i, column := range table.Columns {
+		sql.WriteString("\t")
+		sql.WriteString(generator.QuoteColumn(column.Name))
+		sql.WriteString(" ")
+		sql.WriteString(column.UDTName)
+		var attrs []string
+		if !column.IsNullable {
+			attrs = append(attrs, "NOT NULL")
+		}
+		if column.Default != nil {
+			val := *column.Default
+			if column.DataType == "string" && !strings.Contains(val, "(") && val[0:1] != "'" {
+				val = generator.QuoteLiteral(val)
+			}
+			attrs = append(attrs, "DEFAULT "+val)
+		}
+		if column.IsUnique && len(unique) <= 1 {
+			attrs = append(attrs, "UNIQUE")
+		}
+		if column.IsPrimaryKey {
+			attrs = append(attrs, "PRIMARY KEY")
+		}
+		if len(attrs) > 0 {
+			sql.WriteString(" ")
+			sql.WriteString(strings.Join(attrs, " "))
+		}
+		if i+1 < len(table.Columns) || len(unique) > 1 {
+			sql.WriteString(",\n")
+		} else {
+			sql.WriteString("\n")
+		}
+	}
+	if len(unique) > 1 {
+		sql.WriteString(fmt.Sprintf("\tUNIQUE (%s)\n", strings.Join(unique, ",")))
+	}
+	sql.WriteString(");\n")
+	if table.Description != nil {
+		sql.WriteString(generator.GenerateTableComment(name, *table.Description))
+		sql.WriteString("\n")
+	}
+	for _, column := range table.Columns {
+		if column.Description != nil {
+			sql.WriteString(generator.GenerateColumnComment(name, column.Name, *column.Description))
+			sql.WriteString("\n")
+		}
+	}
+	return sql.String()
 }

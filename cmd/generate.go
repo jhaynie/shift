@@ -12,6 +12,8 @@ import (
 	"github.com/jhaynie/shift/internal/migrator"
 	_ "github.com/jhaynie/shift/internal/migrator/mysql"
 	_ "github.com/jhaynie/shift/internal/migrator/postgres"
+	"github.com/jhaynie/shift/internal/schema"
+	csys "github.com/shopmonkeyus/go-common/sys"
 	"github.com/spf13/cobra"
 )
 
@@ -72,9 +74,34 @@ var generateSchemaCmd = &cobra.Command{
 	},
 }
 
+var generateSQLCmd = &cobra.Command{
+	Use:   "sql [file]",
+	Args:  cobra.ExactArgs(1),
+	Short: "Generate SQL from a schema",
+	Run: func(cmd *cobra.Command, args []string) {
+		logger := newLogger(cmd)
+		file := args[0]
+		if !csys.Exists(file) {
+			logger.Fatal("file %s does not exists or is not accessible", file)
+		}
+		jsonschema, err := schema.Load(file)
+		if err != nil {
+			logger.Fatal("%s", err)
+		}
+		u, err := url.Parse(jsonschema.Database.Url.(string))
+		if err != nil {
+			logger.Error("error parsing: %s. %s", jsonschema.Database.Url, err)
+		}
+		if err := migrator.FromSchema(u.Scheme, jsonschema, os.Stdout); err != nil {
+			logger.Error("%s", err)
+		}
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(generateCmd)
 	generateCmd.AddCommand(generateSchemaCmd)
+	generateCmd.AddCommand(generateSQLCmd)
 
 	generateSchemaCmd.Flags().String("url", os.Getenv("DATABASE_URL"), "the database url")
 }

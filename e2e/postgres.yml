@@ -6,9 +6,24 @@ database:
 tables:
   - name: "table1"
     columns:
-      - name: "id"
-        type: "int"
+      - name: id
+        type: int
         primaryKey: true
         autoIncrement: true
         description: >-
           This is a primary key which auto increments
+      - name: length
+        type: int
+        length:
+          precision: 10
+          scale: 2
+        description: "fixed length number with scale"
+      - name: float
+        type: float
+      - name: int
+        type: int
+      - name: string
+        type: string
+      - name: maxstring
+        type: string
+        maxLength: 255
