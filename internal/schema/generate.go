@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/jhaynie/shift/internal/migrator/types"
@@ -113,6 +114,37 @@ func GenerateSchemaJsonFromInfoTables(logger logger.Logger, driver DatabaseDrive
 	return &schemaJson, nil
 }
 
+func validateDefaultValue(detail types.ColumnDetail, column SchemaJsonTablesElemColumnsElem) error {
+	if detail.Default != nil && !util.IsFunctionCall(*detail.Default) {
+		switch column.Type {
+		case SchemaJsonTablesElemColumnsElemTypeInt:
+			if !util.IsInteger.MatchString(*detail.Default) {
+				return fmt.Errorf("invalid %s default value: %s for column: %s. should be: %s", column.Type, *detail.Default, column.Name, util.IsNumber.String())
+			}
+		case SchemaJsonTablesElemColumnsElemTypeFloat:
+			if !util.IsFloat.MatchString(*detail.Default) {
+				return fmt.Errorf("invalid %s default value: %s for column: %s. should be: %s", column.Type, *detail.Default, column.Name, util.IsNumber.String())
+			}
+		case SchemaJsonTablesElemColumnsElemTypeBoolean:
+			switch *detail.Default {
+			case "true", "false":
+			default:
+				return fmt.Errorf("invalid boolean default value: %s for column: %s. should be either true or false", *detail.Default, column.Name)
+			}
+		case SchemaJsonTablesElemColumnsElemTypeString:
+			if column.Subtype != nil {
+				switch *column.Subtype {
+				case SchemaJsonTablesElemColumnsElemSubtypeJson:
+					if !json.Valid([]byte(*detail.Default)) {
+						return fmt.Errorf("invalid default json value for column: %s", column.Name)
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func SchemaColumnToColumn(driver DatabaseDriverType, column SchemaJsonTablesElemColumnsElem, ordinal int, nativeType *SchemaJsonTablesElemColumnsElemNativeType) (*types.ColumnDetail, error) {
 	var detail types.ColumnDetail
 	detail.Name = column.Name
@@ -124,6 +156,9 @@ func SchemaColumnToColumn(driver DatabaseDriverType, column SchemaJsonTablesElem
 		return nil, fmt.Errorf("error generating native type for column %s", column.Name)
 	}
 	detail.Default = FromNativeDefault(driver, column.Default)
+	if err := validateDefaultValue(detail, column); err != nil {
+		return nil, err
+	}
 	detail.Description = column.Description
 	if column.AutoIncrement != nil {
 		detail.IsAutoIncrementing = *column.AutoIncrement

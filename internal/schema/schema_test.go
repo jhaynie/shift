@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/jhaynie/shift/internal/migrator/types"
 	"github.com/jhaynie/shift/internal/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -144,4 +145,19 @@ func TestFromNativeDefault(t *testing.T) {
 	assert.Nil(t, FromNativeDefault(DatabaseDriverMysql, nil))
 	assert.NotNil(t, FromNativeDefault(DatabaseDriverMysql, &SchemaJsonTablesElemColumnsElemDefault{Mysql: util.Ptr("1")}))
 	assert.Equal(t, "1", *FromNativeDefault(DatabaseDriverMysql, &SchemaJsonTablesElemColumnsElemDefault{Mysql: util.Ptr("1")}))
+}
+
+func TestValidateDefaultValue(t *testing.T) {
+	assert.NoError(t, validateDefaultValue(types.ColumnDetail{}, SchemaJsonTablesElemColumnsElem{}))
+	assert.NoError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr("1")}, SchemaJsonTablesElemColumnsElem{Type: SchemaJsonTablesElemColumnsElemTypeInt}))
+	assert.NoError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr("1.2")}, SchemaJsonTablesElemColumnsElem{Type: SchemaJsonTablesElemColumnsElemTypeFloat}))
+	assert.NoError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr("1")}, SchemaJsonTablesElemColumnsElem{Type: SchemaJsonTablesElemColumnsElemTypeString}))
+	assert.NoError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr(`{"a":"b"}`)}, SchemaJsonTablesElemColumnsElem{Type: SchemaJsonTablesElemColumnsElemTypeString, Subtype: util.Ptr(SchemaJsonTablesElemColumnsElemSubtypeJson)}))
+	assert.NoError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr(`[]`)}, SchemaJsonTablesElemColumnsElem{Type: SchemaJsonTablesElemColumnsElemTypeString, Subtype: util.Ptr(SchemaJsonTablesElemColumnsElemSubtypeJson)}))
+
+	assert.EqualError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr(`[`)}, SchemaJsonTablesElemColumnsElem{Name: "f", Type: SchemaJsonTablesElemColumnsElemTypeString, Subtype: util.Ptr(SchemaJsonTablesElemColumnsElemSubtypeJson)}), "invalid default json value for column: f")
+	assert.EqualError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr("a")}, SchemaJsonTablesElemColumnsElem{Name: "f", Type: SchemaJsonTablesElemColumnsElemTypeInt}), `invalid int default value: a for column: f. should be: ^-?\d+(.\d+)?$`)
+	assert.EqualError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr("1.0")}, SchemaJsonTablesElemColumnsElem{Name: "f", Type: SchemaJsonTablesElemColumnsElemTypeInt}), `invalid int default value: 1.0 for column: f. should be: ^-?\d+(.\d+)?$`)
+	assert.EqualError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr("a")}, SchemaJsonTablesElemColumnsElem{Name: "f", Type: SchemaJsonTablesElemColumnsElemTypeFloat}), `invalid float default value: a for column: f. should be: ^-?\d+(.\d+)?$`)
+	assert.EqualError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr("a")}, SchemaJsonTablesElemColumnsElem{Name: "f", Type: SchemaJsonTablesElemColumnsElemTypeBoolean}), `invalid boolean default value: a for column: f. should be either true or false`)
 }

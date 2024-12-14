@@ -76,3 +76,15 @@ tables:
           postgres: "0"
         nativeType:
           postgres: int2
+      - name: intdef
+        type: int
+        default:
+          postgres: "1022"
+      - name: floatdef
+        type: float
+        default:
+          postgres: "3.14"
+      - name: booldef
+        type: boolean
+        default:
+          postgres: "true"

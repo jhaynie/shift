@@ -232,7 +232,7 @@ func GenerateCreateStatement(name string, table types.TableDetail, generator Tab
 		sql.WriteString(" ")
 		sql.WriteString(column.UDTName)
 		var attrs []string
-		if !column.IsNullable {
+		if !column.IsNullable && column.Default == nil {
 			attrs = append(attrs, "NOT NULL")
 		}
 		if column.Default != nil {

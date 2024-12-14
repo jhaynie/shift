@@ -267,10 +267,28 @@ func dequote(val *string) *string {
 	return val
 }
 
-func formatDefault(val *string) *string {
-	if val != nil && *val != "" && strings.HasSuffix(*val, "::jsonb") {
-		s := *val
-		val = util.Ptr(s[0 : len(s)-7])
+func formatDefault(column types.ColumnDetail) (*string, error) {
+	val := column.Default
+	if val != nil && *val != "" && !util.IsFunctionCall(*val) {
+		switch column.DataType {
+		case "string":
+			if strings.HasSuffix(*val, "::jsonb") {
+				s := *val
+				val = util.Ptr(s[0 : len(s)-7])
+			}
+			return dequote(val), nil
+		case "int", "float":
+			if !util.IsNumber.MatchString(*val) {
+				return nil, fmt.Errorf("invalid %s value: %s. should be: %s", column.DataType, *val, util.IsNumber.String())
+			}
+		case "boolean":
+			switch *val {
+			case "true", "false":
+				break
+			default:
+				return nil, fmt.Errorf("invalid boolean value: %s. should be either true or false", *val)
+			}
+		}
 	}
-	return dequote(val)
+	return val, nil
 }

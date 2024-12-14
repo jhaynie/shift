@@ -139,7 +139,54 @@ func TestDataTypeToType(t *testing.T) {
 	assertDataTypeToType(t, "ARRAY", "boolean", schema.SchemaJsonTablesElemColumnsElemTypeBoolean, true)
 }
 
+func assertFormatDefault(t *testing.T, dt string, def string, expectValue string) {
+	val, err := formatDefault(types.ColumnDetail{DataType: dt, Default: util.Ptr(def)})
+	assert.NoError(t, err)
+	assert.NotNil(t, val)
+	assert.Equal(t, expectValue, *val)
+}
+
 func TestFormatDefault(t *testing.T) {
-	assert.NotNil(t, formatDefault(util.Ptr("foo")))
-	assert.Equal(t, "foo", *formatDefault(util.Ptr("'foo'::jsonb")))
+	assertFormatDefault(t, "string", "foo", "foo")
+	assertFormatDefault(t, "string", "'foo'::jsonb", "foo")
+	assertFormatDefault(t, "string", "'foo'", "foo")
+
+	val, err := formatDefault(types.ColumnDetail{DataType: "int", Default: util.Ptr("a")})
+	assert.EqualError(t, err, `invalid int value: a. should be: ^-?\d+(.\d+)?$`)
+	assert.Nil(t, val)
+
+	val, err = formatDefault(types.ColumnDetail{DataType: "int", Default: util.Ptr("10")})
+	assert.NoError(t, err)
+	assert.NotNil(t, val)
+
+	val, err = formatDefault(types.ColumnDetail{DataType: "int", Default: util.Ptr("nextval('playing_with_neon_id_seq'::regclass)")})
+	assert.NoError(t, err)
+	assert.NotNil(t, val)
+
+	val, err = formatDefault(types.ColumnDetail{DataType: "float", Default: util.Ptr("a")})
+	assert.EqualError(t, err, `invalid float value: a. should be: ^-?\d+(.\d+)?$`)
+	assert.Nil(t, val)
+
+	val, err = formatDefault(types.ColumnDetail{DataType: "float", Default: util.Ptr("10.1")})
+	assert.NoError(t, err)
+	assert.NotNil(t, val)
+
+	val, err = formatDefault(types.ColumnDetail{DataType: "boolean", Default: util.Ptr("a")})
+	assert.EqualError(t, err, `invalid boolean value: a. should be either true or false`)
+	assert.Nil(t, val)
+
+	val, err = formatDefault(types.ColumnDetail{DataType: "boolean", Default: util.Ptr("true")})
+	assert.NoError(t, err)
+	assert.NotNil(t, val)
+
+	val, err = formatDefault(types.ColumnDetail{DataType: "boolean", Default: util.Ptr("false")})
+	assert.NoError(t, err)
+	assert.NotNil(t, val)
+}
+
+func TestIsFunctionCall(t *testing.T) {
+	assert.True(t, util.IsFunctionCall("foo()"))
+	assert.True(t, util.IsFunctionCall("nextval('playing_with_neon_id_seq'::regclass)"))
+	assert.False(t, util.IsFunctionCall("'foo'"))
+	assert.False(t, util.IsFunctionCall("'foo'::jsonb"))
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/jhaynie/shift/internal/migrator"
 	"github.com/jhaynie/shift/internal/migrator/types"
 	"github.com/jhaynie/shift/internal/schema"
+	"github.com/jhaynie/shift/internal/util"
 )
 
 type PostgresMigrator struct {
@@ -67,7 +68,10 @@ func (p *PostgresMigrator) ToSchema(args migrator.ToSchemaArgs) (*schema.SchemaJ
 					column.IsAutoIncrementing = true
 				}
 			}
-			column.Default = formatDefault(column.Default)
+			column.Default, err = formatDefault(column)
+			if err != nil {
+				return nil, fmt.Errorf("error validating column: %s table: %s default value: %s", column.Name, table, err)
+			}
 			detail.Columns[i] = column
 		}
 	}
@@ -109,11 +113,11 @@ func (p *PostgresMigrator) QuoteLiteral(val string) string {
 }
 
 func (p *PostgresMigrator) QuoteDefaultValue(val string, column types.ColumnDetail) string {
-	if column.DataType == "string" && !strings.Contains(val, "(") && val[0:1] != "'" {
+	if column.DataType == "string" && !util.IsFunctionCall(val) {
 		val = p.QuoteLiteral(val)
-	}
-	if column.DataType == "string" && column.UDTName == "jsonb" && !strings.Contains(val, "(") && !strings.HasSuffix(val, "::jsonb") {
-		val += "::jsonb"
+		if column.UDTName == "jsonb" && !strings.HasSuffix(val, "::jsonb") {
+			val += "::jsonb"
+		}
 	}
 	return val
 }

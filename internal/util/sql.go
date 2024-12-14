@@ -11,3 +11,8 @@ var sregex = regexp.MustCompile(`\s{2,}`)
 func CleanSQL(val string) string {
 	return strings.TrimSpace(sregex.ReplaceAllString(strings.ReplaceAll(val, "\n", " "), " "))
 }
+
+// IsFunctionCall returns true if the val looks like a function call
+func IsFunctionCall(val string) bool {
+	return val[0:1] != "'" && strings.Contains(val, "(") && strings.Contains(val, ")")
+}

@@ -278,7 +278,7 @@ func TestGenerateCreateStatementWithDefault(t *testing.T) {
 	}, &noOpGenerator{})
 	assert.NotEmpty(t, res)
 	res = util.CleanSQL(res)
-	assert.Equal(t, `CREATE TABLE IF NOT EXISTS test ( a varchar(255) NOT NULL DEFAULT 'hi', b varchar(255) NOT NULL );`, res)
+	assert.Equal(t, `CREATE TABLE IF NOT EXISTS test ( a varchar(255) DEFAULT 'hi', b varchar(255) NOT NULL );`, res)
 }
 
 func TestGenerateCreateStatementWithDefaultWithInteger(t *testing.T) {
@@ -290,7 +290,7 @@ func TestGenerateCreateStatementWithDefaultWithInteger(t *testing.T) {
 	}, &noOpGenerator{})
 	assert.NotEmpty(t, res)
 	res = util.CleanSQL(res)
-	assert.Equal(t, `CREATE TABLE IF NOT EXISTS test ( a smallint NOT NULL DEFAULT 123, b varchar(255) NOT NULL );`, res)
+	assert.Equal(t, `CREATE TABLE IF NOT EXISTS test ( a smallint DEFAULT 123, b varchar(255) NOT NULL );`, res)
 }
 
 func TestGenerateCreateStatementWithDefaultWithFunction(t *testing.T) {
@@ -302,7 +302,7 @@ func TestGenerateCreateStatementWithDefaultWithFunction(t *testing.T) {
 	}, &noOpGenerator{})
 	assert.NotEmpty(t, res)
 	res = util.CleanSQL(res)
-	assert.Equal(t, `CREATE TABLE IF NOT EXISTS test ( a integer NOT NULL DEFAULT nextval('test_seq'), b varchar(255) NOT NULL );`, res)
+	assert.Equal(t, `CREATE TABLE IF NOT EXISTS test ( a integer DEFAULT nextval('test_seq'), b varchar(255) NOT NULL );`, res)
 }
 
 func TestGenerateCreateStatementWithNullable(t *testing.T) {
