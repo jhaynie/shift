@@ -156,8 +156,8 @@ func TestValidateDefaultValue(t *testing.T) {
 	assert.NoError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr(`[]`)}, SchemaJsonTablesElemColumnsElem{Type: SchemaJsonTablesElemColumnsElemTypeString, Subtype: util.Ptr(SchemaJsonTablesElemColumnsElemSubtypeJson)}))
 
 	assert.EqualError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr(`[`)}, SchemaJsonTablesElemColumnsElem{Name: "f", Type: SchemaJsonTablesElemColumnsElemTypeString, Subtype: util.Ptr(SchemaJsonTablesElemColumnsElemSubtypeJson)}), "invalid default json value for column: f")
-	assert.EqualError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr("a")}, SchemaJsonTablesElemColumnsElem{Name: "f", Type: SchemaJsonTablesElemColumnsElemTypeInt}), `invalid int default value: a for column: f. should be: ^-?\d+(.\d+)?$`)
-	assert.EqualError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr("1.0")}, SchemaJsonTablesElemColumnsElem{Name: "f", Type: SchemaJsonTablesElemColumnsElemTypeInt}), `invalid int default value: 1.0 for column: f. should be: ^-?\d+(.\d+)?$`)
+	assert.EqualError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr("a")}, SchemaJsonTablesElemColumnsElem{Name: "f", Type: SchemaJsonTablesElemColumnsElemTypeInt}), `invalid int default value: a for column: f. should be: ^-?\d+$`)
+	assert.EqualError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr("1.0")}, SchemaJsonTablesElemColumnsElem{Name: "f", Type: SchemaJsonTablesElemColumnsElemTypeInt}), `invalid int default value: 1.0 for column: f. should be: ^-?\d+$`)
 	assert.EqualError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr("a")}, SchemaJsonTablesElemColumnsElem{Name: "f", Type: SchemaJsonTablesElemColumnsElemTypeFloat}), `invalid float default value: a for column: f. should be: ^-?\d+(.\d+)?$`)
 	assert.EqualError(t, validateDefaultValue(types.ColumnDetail{Default: util.Ptr("a")}, SchemaJsonTablesElemColumnsElem{Name: "f", Type: SchemaJsonTablesElemColumnsElemTypeBoolean}), `invalid boolean default value: a for column: f. should be either true or false`)
 }

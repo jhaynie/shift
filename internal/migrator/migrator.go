@@ -60,9 +60,10 @@ type MigratorArgs struct {
 }
 
 type ToSchemaArgs struct {
-	Context context.Context
-	Logger  logger.Logger
-	DB      *sql.DB
+	Context     context.Context
+	Logger      logger.Logger
+	DB          *sql.DB
+	TableFilter []string
 }
 
 type Migrator interface {

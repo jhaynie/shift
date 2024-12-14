@@ -341,3 +341,17 @@ func TestGenerateCreateStatementWithCompoundUnique(t *testing.T) {
 	res = util.CleanSQL(res)
 	assert.Equal(t, `CREATE TABLE IF NOT EXISTS test ( a varchar(255) NOT NULL PRIMARY KEY, b varchar(255) NOT NULL, c varchar(255) NOT NULL, UNIQUE (b,c) );`, res)
 }
+
+func TestGenerateSingleTableWithTableFilter(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+	mock.ExpectQuery("SELECT table_name, column_name, ordinal_position, column_default, is_nullable, data_type, character_maximum_length, numeric_precision, numeric_scale, udt_name FROM information_schema.columns WHERE table_name IN \\( SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN \\('pg_catalog','information_schema'\\) AND table_catalog = current_database\\(\\) \\) ORDER BY table_name, ordinal_position").WithoutArgs().WillReturnRows(sqlmock.NewRows([]string{"table_name", "column_name", "ordinal_position", "column_default", "is_nullable", "data_type", "character_maximum_length", "numeric_precision", "numeric_scale", "udt_name"}).AddRow("table", "column", int64(1), nil, "YES", "text", nil, nil, nil, "text"))
+	res, err := GenerateInfoTables(context.Background(), logger.NewTestLogger(), db, WithTableFilter([]string{"foo"}))
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Empty(t, res)
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}

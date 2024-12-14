@@ -58,10 +58,12 @@ var generateSchemaCmd = &cobra.Command{
 			logger.Fatal("Unable to connect to database: %v", err)
 		}
 		defer db.Close()
+		tables, _ := cmd.Flags().GetStringSlice("table")
 		jsonschema, err := migrator.ToSchema(protocol, migrator.ToSchemaArgs{
-			Context: context.Background(),
-			DB:      db,
-			Logger:  logger,
+			Context:     context.Background(),
+			DB:          db,
+			Logger:      logger,
+			TableFilter: tables,
 		})
 		if err != nil {
 			logger.Fatal("error generating schema: %s", err)
@@ -102,6 +104,8 @@ func init() {
 	rootCmd.AddCommand(generateCmd)
 	generateCmd.AddCommand(generateSchemaCmd)
 	generateCmd.AddCommand(generateSQLCmd)
+
+	generateSchemaCmd.Flags().StringSlice("table", []string{}, "table to filter when generating")
 
 	generateSchemaCmd.Flags().String("url", os.Getenv("DATABASE_URL"), "the database url")
 }

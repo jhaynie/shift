@@ -33,14 +33,14 @@ func TestToUDTName(t *testing.T) {
 
 func TestToNativeType(t *testing.T) {
 	assert.Equal(t, "uuid", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{NativeType: &schema.SchemaJsonTablesElemColumnsElemNativeType{Postgres: util.Ptr("uuid")}}).Postgres)
-	assert.Equal(t, "boolean", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeBoolean}).Postgres)
-	assert.Equal(t, "timestamp with time zone", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeDatetime}).Postgres)
+	assert.Equal(t, "bool", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeBoolean}).Postgres)
+	assert.Equal(t, "timestamptz", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeDatetime}).Postgres)
 	assert.Equal(t, "double precision", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeFloat}).Postgres)
-	assert.Equal(t, "real", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeFloat, MaxLength: util.Ptr(int(32))}).Postgres)
+	assert.Equal(t, "float4", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeFloat, MaxLength: util.Ptr(int(32))}).Postgres)
 	assert.Equal(t, "numeric(10)", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeInt, MaxLength: util.Ptr(int(10))}).Postgres)
 	assert.Equal(t, "numeric(10,2)", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeInt, Length: &schema.SchemaJsonTablesElemColumnsElemLength{Precision: 10, Scale: util.Ptr(float64(2))}}).Postgres)
 	assert.Equal(t, "numeric(10)", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeInt, Length: &schema.SchemaJsonTablesElemColumnsElemLength{Precision: 10}}).Postgres)
-	assert.Equal(t, "smallint", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeInt, Length: &schema.SchemaJsonTablesElemColumnsElemLength{Precision: 16}}).Postgres)
+	assert.Equal(t, "int2", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeInt, Length: &schema.SchemaJsonTablesElemColumnsElemLength{Precision: 16}}).Postgres)
 	assert.Equal(t, "int4", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeInt, Length: &schema.SchemaJsonTablesElemColumnsElemLength{Precision: 32}}).Postgres)
 	assert.Equal(t, "int8", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeInt, Length: &schema.SchemaJsonTablesElemColumnsElemLength{Precision: 64}}).Postgres)
 	assert.Equal(t, "int8", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeInt}).Postgres)
@@ -54,14 +54,14 @@ func TestToNativeType(t *testing.T) {
 }
 
 func TestToNativeTypeArray(t *testing.T) {
-	assert.Equal(t, "boolean[]", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{IsArray: true, Type: schema.SchemaJsonTablesElemColumnsElemTypeBoolean}).Postgres)
-	assert.Equal(t, "timestamp with time zone[]", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{IsArray: true, Type: schema.SchemaJsonTablesElemColumnsElemTypeDatetime}).Postgres)
+	assert.Equal(t, "bool[]", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{IsArray: true, Type: schema.SchemaJsonTablesElemColumnsElemTypeBoolean}).Postgres)
+	assert.Equal(t, "timestamptz[]", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{IsArray: true, Type: schema.SchemaJsonTablesElemColumnsElemTypeDatetime}).Postgres)
 	assert.Equal(t, "double precision[]", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{IsArray: true, Type: schema.SchemaJsonTablesElemColumnsElemTypeFloat}).Postgres)
-	assert.Equal(t, "real[]", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{IsArray: true, Type: schema.SchemaJsonTablesElemColumnsElemTypeFloat, MaxLength: util.Ptr(int(32))}).Postgres)
+	assert.Equal(t, "float4[]", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{IsArray: true, Type: schema.SchemaJsonTablesElemColumnsElemTypeFloat, MaxLength: util.Ptr(int(32))}).Postgres)
 	assert.Equal(t, "numeric(10)[]", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{IsArray: true, Type: schema.SchemaJsonTablesElemColumnsElemTypeInt, MaxLength: util.Ptr(int(10))}).Postgres)
 	assert.Equal(t, "numeric(10,2)[]", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{IsArray: true, Type: schema.SchemaJsonTablesElemColumnsElemTypeInt, Length: &schema.SchemaJsonTablesElemColumnsElemLength{Precision: 10, Scale: util.Ptr(float64(2))}}).Postgres)
 	assert.Equal(t, "numeric(10)[]", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{IsArray: true, Type: schema.SchemaJsonTablesElemColumnsElemTypeInt, Length: &schema.SchemaJsonTablesElemColumnsElemLength{Precision: 10}}).Postgres)
-	assert.Equal(t, "smallint[]", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{IsArray: true, Type: schema.SchemaJsonTablesElemColumnsElemTypeInt, Length: &schema.SchemaJsonTablesElemColumnsElemLength{Precision: 16}}).Postgres)
+	assert.Equal(t, "int2[]", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{IsArray: true, Type: schema.SchemaJsonTablesElemColumnsElemTypeInt, Length: &schema.SchemaJsonTablesElemColumnsElemLength{Precision: 16}}).Postgres)
 	assert.Equal(t, "int4[]", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{IsArray: true, Type: schema.SchemaJsonTablesElemColumnsElemTypeInt, Length: &schema.SchemaJsonTablesElemColumnsElemLength{Precision: 32}}).Postgres)
 	assert.Equal(t, "int8[]", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{IsArray: true, Type: schema.SchemaJsonTablesElemColumnsElemTypeInt, Length: &schema.SchemaJsonTablesElemColumnsElemLength{Precision: 64}}).Postgres)
 	assert.Equal(t, "int8[]", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{IsArray: true, Type: schema.SchemaJsonTablesElemColumnsElemTypeInt}).Postgres)

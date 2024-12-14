@@ -173,12 +173,12 @@ func ToNativeType(column schema.SchemaJsonTablesElemColumnsElem) *schema.SchemaJ
 	}
 	switch column.Type {
 	case schema.SchemaJsonTablesElemColumnsElemTypeBoolean:
-		return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("boolean", column.IsArray))
+		return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("bool", column.IsArray))
 	case schema.SchemaJsonTablesElemColumnsElemTypeDatetime:
-		return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("timestamp with time zone", column.IsArray))
+		return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("timestamptz", column.IsArray))
 	case schema.SchemaJsonTablesElemColumnsElemTypeFloat:
 		if column.MaxLength != nil && *column.MaxLength == 32 {
-			return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("real", column.IsArray))
+			return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("float4", column.IsArray))
 		}
 		return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("double precision", column.IsArray))
 	case schema.SchemaJsonTablesElemColumnsElemTypeInt:
@@ -191,7 +191,7 @@ func ToNativeType(column schema.SchemaJsonTablesElemColumnsElem) *schema.SchemaJ
 			}
 			switch column.Length.Precision {
 			case 16:
-				return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("smallint", column.IsArray))
+				return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("int2", column.IsArray))
 			case 32:
 				return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("int4", column.IsArray))
 			case 64:

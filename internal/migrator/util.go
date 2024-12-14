@@ -53,6 +53,7 @@ type infoQueryConfig struct {
 	extraSchemaExcludes  []string
 	tableTypeOverride    string
 	tableCatalogOverride string
+	filterTables         []string
 }
 
 type WithOption func(config *infoQueryConfig)
@@ -127,6 +128,13 @@ func WithTableSchemaExcludes(tables []string) WithOption {
 	}
 }
 
+// WithTableFilter allows filtering for specific tables
+func WithTableFilter(tables []string) WithOption {
+	return func(config *infoQueryConfig) {
+		config.filterTables = tables
+	}
+}
+
 // GenerateInfoTables is a utility for generating generic tables from an database that supports the information_schema standard
 func GenerateInfoTables(ctx context.Context, logger logger.Logger, db *sql.DB, opts ...WithOption) (map[string]*types.TableDetail, error) {
 	config := generateDefaultInfoQueryConfig()
@@ -149,6 +157,9 @@ func GenerateInfoTables(ctx context.Context, logger logger.Logger, db *sql.DB, o
 			var ordinal int64
 			if err := res.Scan(&tableName, &columnName, &ordinal, &columnDefault, &nullable, &dataType, &maxLength, &numericPrecision, &numericScale, &udtName); err != nil {
 				return nil, err
+			}
+			if len(config.filterTables) > 0 && !util.Contains(config.filterTables, tableName) {
+				continue // skip if we're filtering tables
 			}
 			table := tables[tableName]
 			if table == nil {
@@ -179,6 +190,7 @@ func GenerateInfoTables(ctx context.Context, logger logger.Logger, db *sql.DB, o
 			table.Columns = append(table.Columns, detail)
 		}
 	}
+	fmt.Println("tables", tables)
 	if len(tables) > 0 {
 		constraintQuery := generateInfoTableConstraintsQuery(config)
 		logger.Trace("sql: %s", constraintQuery)

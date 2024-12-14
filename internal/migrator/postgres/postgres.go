@@ -22,7 +22,7 @@ func (p *PostgresMigrator) Migrate(args migrator.MigratorArgs) error {
 }
 
 func (p *PostgresMigrator) ToSchema(args migrator.ToSchemaArgs) (*schema.SchemaJson, error) {
-	tables, err := migrator.GenerateInfoTables(args.Context, args.Logger, args.DB)
+	tables, err := migrator.GenerateInfoTables(args.Context, args.Logger, args.DB, migrator.WithTableFilter(args.TableFilter))
 	if err != nil {
 		return nil, fmt.Errorf("error generating table schema: %w", err)
 	}
