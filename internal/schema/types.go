@@ -71,6 +71,9 @@ type SchemaJsonTablesElemColumnsElem struct {
 	// Whether the column is indexed.
 	Index *bool `json:"index,omitempty" yaml:"index,omitempty" mapstructure:"index,omitempty"`
 
+	// If the type represents an array.
+	IsArray bool `json:"isArray,omitempty" yaml:"isArray,omitempty" mapstructure:"isArray,omitempty"`
+
 	// The exact length for a number type.
 	Length *SchemaJsonTablesElemColumnsElemLength `json:"length,omitempty" yaml:"length,omitempty" mapstructure:"length,omitempty"`
 
@@ -197,7 +200,6 @@ func (j *SchemaJsonTablesElemColumnsElemReferences) UnmarshalJSON(b []byte) erro
 
 type SchemaJsonTablesElemColumnsElemSubtype string
 
-const SchemaJsonTablesElemColumnsElemSubtypeArray SchemaJsonTablesElemColumnsElemSubtype = "array"
 const SchemaJsonTablesElemColumnsElemSubtypeBinary SchemaJsonTablesElemColumnsElemSubtype = "binary"
 const SchemaJsonTablesElemColumnsElemSubtypeBit SchemaJsonTablesElemColumnsElemSubtype = "bit"
 const SchemaJsonTablesElemColumnsElemSubtypeJson SchemaJsonTablesElemColumnsElemSubtype = "json"
@@ -205,7 +207,6 @@ const SchemaJsonTablesElemColumnsElemSubtypeUuid SchemaJsonTablesElemColumnsElem
 
 var enumValues_SchemaJsonTablesElemColumnsElemSubtype = []interface{}{
 	"json",
-	"array",
 	"binary",
 	"bit",
 	"uuid",
@@ -283,6 +284,9 @@ func (j *SchemaJsonTablesElemColumnsElem) UnmarshalJSON(b []byte) error {
 	var plain Plain
 	if err := json.Unmarshal(b, &plain); err != nil {
 		return err
+	}
+	if v, ok := raw["isArray"]; !ok || v == nil {
+		plain.IsArray = false
 	}
 	if plain.MaxLength != nil && 65535 < *plain.MaxLength {
 		return fmt.Errorf("field %s: must be <= %v", "maxLength", 65535)

@@ -226,7 +226,7 @@ func GenerateCreateStatement(name string, table types.TableDetail, generator Tab
 		}
 	}
 	for i, column := range table.Columns {
-		sql.WriteString("\t")
+		sql.WriteString("   ")
 		sql.WriteString(generator.QuoteColumn(column.Name))
 		sql.WriteString(" ")
 		sql.WriteString(column.UDTName)

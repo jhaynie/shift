@@ -93,6 +93,7 @@ func GenerateSchemaJsonFromInfoTables(logger logger.Logger, driver DatabaseDrive
 				Nullable:      &column.IsNullable,
 				AutoIncrement: util.Ptr(column.IsAutoIncrementing),
 				PrimaryKey:    util.Ptr(column.IsPrimaryKey),
+				IsArray:       column.IsArray,
 			}
 			if column.MaxLength != nil && *column.MaxLength > 0 {
 				col.MaxLength = util.Ptr(int(*column.MaxLength))

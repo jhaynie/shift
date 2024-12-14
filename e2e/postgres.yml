@@ -20,6 +20,9 @@ tables:
         description: "fixed length number with scale"
       - name: float
         type: float
+      - name: smfloat
+        type: float
+        maxLength: 32
       - name: int
         type: int
       - name: string
@@ -27,3 +30,35 @@ tables:
       - name: maxstring
         type: string
         maxLength: 255
+      - name: smint
+        type: int
+        length:
+          precision: 16
+      - name: medint
+        type: int
+        length:
+          precision: 32
+      - name: lgint
+        type: int
+        length:
+          precision: 64
+      - name: thedate
+        type: datetime
+      - name: binary
+        type: string
+        subtype: binary
+      - name: uuid
+        type: string
+        subtype: uuid
+      - name: bits
+        type: string
+        subtype: bit
+      - name: fixedbits
+        type: string
+        subtype: bit
+        maxLength: 2
+      - name: json
+        type: string
+        subtype: json
+      - name: bool
+        type: boolean

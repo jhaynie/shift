@@ -75,7 +75,12 @@
                 "subtype": {
                   "type": "string",
                   "description": "The generic subtype of the column.",
-                  "enum": ["json", "array", "binary", "bit", "uuid"]
+                  "enum": ["json", "binary", "bit", "uuid"]
+                },
+                "isArray": {
+                  "type": "boolean",
+                  "description": "If the type represents an array.",
+                  "default": false
                 },
                 "nativeType": {
                   "type": "object",

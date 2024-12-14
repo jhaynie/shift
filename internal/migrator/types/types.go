@@ -20,6 +20,7 @@ type ColumnDetail struct {
 	IsPrimaryKey       bool
 	IsUnique           bool
 	IsAutoIncrementing bool
+	IsArray            bool
 }
 
 type ConstraintDetail struct {

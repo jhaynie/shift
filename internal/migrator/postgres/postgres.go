@@ -49,12 +49,14 @@ func (p *PostgresMigrator) ToSchema(args migrator.ToSchemaArgs) (*schema.SchemaJ
 			}
 		}
 		for i, column := range detail.Columns {
-			dt, err := DataTypeToType(column.DataType)
+			fmt.Println(column.Name, column.DataType, column.UDTName)
+			dt, _, err := DataTypeToType(column.DataType, column.UDTName)
 			if err != nil {
 				return nil, fmt.Errorf("error converting column %s with table: %s. %s", column.Name, table, err)
 			}
 			column.DataType = string(dt)
-			column.UDTName = ToUDTName(column)
+			column.UDTName, column.IsArray = ToUDTName(column)
+			fmt.Println(column.Name, column.IsArray, column.DataType, column.UDTName)
 			for _, constraint := range detail.Constraints {
 				if constraint.Type == "PRIMARY KEY" {
 					column.IsPrimaryKey = true

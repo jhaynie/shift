@@ -97,20 +97,23 @@ func GetColumnDescriptions(ctx context.Context, logger logger.Logger, db *sql.DB
 }
 
 // see https://www.postgresql.org/docs/current/datatype.html
-func DataTypeToType(val string) (schema.SchemaJsonTablesElemColumnsElemType, error) {
+func DataTypeToType(val string, nativeType string) (schema.SchemaJsonTablesElemColumnsElemType, bool, error) {
 	switch val {
 	case "text", "uuid", "json", "jsonb", "xml", "cidr", "bit", "bit varying", "bytea", "character", "character varying", "circle", "inet", "interval", "line", "lseg", "macaddr", "macaddr8", "path", "pg_snapshot", "point", "polygon", "tsquery", "tsvector", "txid_snapshot":
-		return schema.SchemaJsonTablesElemColumnsElemTypeString, nil
+		return schema.SchemaJsonTablesElemColumnsElemTypeString, false, nil
 	case "integer", "bigint", "bigserial", "pg_lsn", "smallint", "smallserial", "serial":
-		return schema.SchemaJsonTablesElemColumnsElemTypeInt, nil
+		return schema.SchemaJsonTablesElemColumnsElemTypeInt, false, nil
 	case "real", "double precision", "money", "numeric":
-		return schema.SchemaJsonTablesElemColumnsElemTypeFloat, nil
+		return schema.SchemaJsonTablesElemColumnsElemTypeFloat, false, nil
 	case "date", "time", "timestamp", "timestamp with time zone", "timestamp without time zone":
-		return schema.SchemaJsonTablesElemColumnsElemTypeDatetime, nil
+		return schema.SchemaJsonTablesElemColumnsElemTypeDatetime, false, nil
 	case "boolean":
-		return schema.SchemaJsonTablesElemColumnsElemTypeBoolean, nil
+		return schema.SchemaJsonTablesElemColumnsElemTypeBoolean, false, nil
+	case "ARRAY":
+		r, _, err := DataTypeToType(nativeType[1:], "")
+		return r, true, err
 	}
-	return "", fmt.Errorf("unhandled data type: %s", val)
+	return "", false, fmt.Errorf("unhandled data type: %s", val)
 }
 
 var tableIdentitySQL = util.CleanSQL(`SELECT
@@ -152,54 +155,74 @@ func GetTableAutoIncrements(ctx context.Context, logger logger.Logger, db *sql.D
 	return tables, nil
 }
 
+func toMaybeArray(val string, isArray bool) string {
+	if isArray {
+		return val + "[]"
+	}
+	return val
+}
+
 func ToNativeType(column schema.SchemaJsonTablesElemColumnsElem) *schema.SchemaJsonTablesElemColumnsElemNativeType {
 	if column.NativeType != nil && column.NativeType.Postgres != nil {
 		return column.NativeType
 	}
 	switch column.Type {
 	case schema.SchemaJsonTablesElemColumnsElemTypeBoolean:
-		return schema.ToNativeType(schema.DatabaseDriverPostgres, "boolean")
+		return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("boolean", column.IsArray))
 	case schema.SchemaJsonTablesElemColumnsElemTypeDatetime:
-		return schema.ToNativeType(schema.DatabaseDriverPostgres, "timestamp with time zone")
+		return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("timestamp with time zone", column.IsArray))
 	case schema.SchemaJsonTablesElemColumnsElemTypeFloat:
-		return schema.ToNativeType(schema.DatabaseDriverPostgres, "double precision")
+		if column.MaxLength != nil && *column.MaxLength == 32 {
+			return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("real", column.IsArray))
+		}
+		return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("double precision", column.IsArray))
 	case schema.SchemaJsonTablesElemColumnsElemTypeInt:
 		if column.MaxLength != nil && *column.MaxLength > 0 {
-			return schema.ToNativeType(schema.DatabaseDriverPostgres, fmt.Sprintf("numeric(%d)", *column.MaxLength))
+			return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray(fmt.Sprintf("numeric(%d)", *column.MaxLength), column.IsArray))
 		}
 		if column.Length != nil {
 			if column.Length.Scale != nil {
-				return schema.ToNativeType(schema.DatabaseDriverPostgres, fmt.Sprintf("numeric(%d,%s)", column.Length.Precision, strconv.FormatFloat(*column.Length.Scale, 'f', 0, 32)))
+				return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray(fmt.Sprintf("numeric(%d,%s)", column.Length.Precision, strconv.FormatFloat(*column.Length.Scale, 'f', 0, 32)), column.IsArray))
 			}
-			return schema.ToNativeType(schema.DatabaseDriverPostgres, fmt.Sprintf("numeric(%d)", column.Length.Precision))
+			switch column.Length.Precision {
+			case 16:
+				return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("smallint", column.IsArray))
+			case 32:
+				return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("int4", column.IsArray))
+			case 64:
+				return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("int8", column.IsArray))
+			}
+			return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray(fmt.Sprintf("numeric(%d)", column.Length.Precision), column.IsArray))
 		}
-		return schema.ToNativeType(schema.DatabaseDriverPostgres, "bigint")
+		return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("int8", column.IsArray))
 	case schema.SchemaJsonTablesElemColumnsElemTypeString:
 		if column.Subtype != nil {
 			switch *column.Subtype {
-			case schema.SchemaJsonTablesElemColumnsElemSubtypeArray:
-				// TODO
 			case schema.SchemaJsonTablesElemColumnsElemSubtypeBinary:
-				return schema.ToNativeType(schema.DatabaseDriverPostgres, "bytea")
+				return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("bytea", column.IsArray))
 			case schema.SchemaJsonTablesElemColumnsElemSubtypeBit:
-				return schema.ToNativeType(schema.DatabaseDriverPostgres, "bit")
+				if column.MaxLength != nil && *column.MaxLength > 0 {
+					return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray(fmt.Sprintf("bit(%d)", *column.MaxLength), column.IsArray))
+				}
+				return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("bit", column.IsArray))
 			case schema.SchemaJsonTablesElemColumnsElemSubtypeJson:
-				return schema.ToNativeType(schema.DatabaseDriverPostgres, "jsonb")
+				return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("jsonb", column.IsArray))
 			case schema.SchemaJsonTablesElemColumnsElemSubtypeUuid:
-				return schema.ToNativeType(schema.DatabaseDriverPostgres, "uuid")
+				return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("uuid", column.IsArray))
 			}
 		}
 		if column.MaxLength != nil && *column.MaxLength > 0 {
-			return schema.ToNativeType(schema.DatabaseDriverPostgres, fmt.Sprintf("varchar(%d)", *column.MaxLength))
+			return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray(fmt.Sprintf("varchar(%d)", *column.MaxLength), column.IsArray))
 		}
-		return schema.ToNativeType(schema.DatabaseDriverPostgres, "text")
+		return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("text", column.IsArray))
 	}
 	return nil
 }
 
-func ToUDTName(column types.ColumnDetail) string {
+func ToUDTName(column types.ColumnDetail) (string, bool) {
+	val := column.UDTName
 	if column.MaxLength != nil && *column.MaxLength > 0 {
-		return column.UDTName + fmt.Sprintf("(%d)", *column.MaxLength)
+		val = column.UDTName + fmt.Sprintf("(%d)", *column.MaxLength)
 	} else if column.NumericPrecision != nil {
 		if column.DataType == "int" && (*column.NumericPrecision == 64 || *column.NumericPrecision == 32) && (column.NumericScale == nil || *column.NumericScale == 0) {
 			// this is a normal int
@@ -208,16 +231,19 @@ func ToUDTName(column types.ColumnDetail) string {
 		} else {
 			if column.DataType == "float" && column.UDTName == "float8" && column.NumericScale == nil && *column.NumericPrecision == 53 {
 				// this is double precision type
-				return "double precision"
+				val = "double precision"
 			} else {
 				// this is an abitrary number
 				if column.NumericScale != nil {
-					return column.UDTName + fmt.Sprintf("(%d,%d)", *column.NumericPrecision, *column.NumericScale)
+					val = column.UDTName + fmt.Sprintf("(%d,%d)", *column.NumericPrecision, *column.NumericScale)
 				} else {
-					return column.UDTName + fmt.Sprintf("(%d)", *column.NumericPrecision)
+					val = column.UDTName + fmt.Sprintf("(%d)", *column.NumericPrecision)
 				}
 			}
 		}
 	}
-	return column.UDTName
+	if val != "" && val[0:1] == "_" {
+		return val[1:] + "[]", true
+	}
+	return val, false
 }
