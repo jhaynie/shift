@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/jhaynie/shift/internal/migrator"
 	"github.com/jhaynie/shift/internal/migrator/types"
@@ -18,6 +19,19 @@ var _ migrator.Migrator = (*PostgresMigrator)(nil)
 var _ migrator.TableGenerator = (*PostgresMigrator)(nil)
 
 func (p *PostgresMigrator) Migrate(args migrator.MigratorArgs) error {
+	if args.Drop {
+		var out strings.Builder
+		ts := time.Now()
+		if err := p.FromSchema(args.Schema, &out); err != nil {
+			return err
+		}
+		args.Logger.Info("generated sql in %v", time.Since(ts))
+		ts = time.Now()
+		if _, err := args.DB.ExecContext(args.Context, out.String()); err != nil {
+			return err
+		}
+		args.Logger.Info("executed sql in %v", time.Since(ts))
+	}
 	return nil
 }
 

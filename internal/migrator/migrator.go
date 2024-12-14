@@ -47,16 +47,12 @@ type MigrateChanges struct {
 	Indexes []MigrateIndex
 }
 
-// MigratorCallbackFunc takes a list of changes and returns true if the changes should be applied or false to skip.
-type MigratorCallbackFunc func(changes []MigrateChanges) (bool, error)
-
 type MigratorArgs struct {
-	Context  context.Context
-	Logger   logger.Logger
-	Dir      string
-	Schema   *schema.SchemaJson
-	DB       *sql.DB
-	Callback MigratorCallbackFunc
+	Context context.Context
+	Logger  logger.Logger
+	Schema  *schema.SchemaJson
+	DB      *sql.DB
+	Drop    bool
 }
 
 type ToSchemaArgs struct {

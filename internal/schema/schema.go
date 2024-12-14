@@ -43,6 +43,9 @@ func Load(filename string) (*SchemaJson, error) {
 	default:
 		return nil, fmt.Errorf("unsupported file extension: %s. should be either .json or .yaml", filepath.Ext(filename))
 	}
+	if s, ok := schema.Database.Url.(string); ok {
+		schema.Database.Url = os.ExpandEnv(s)
+	}
 	for _, table := range schema.Tables {
 		if !validateName(table.Name) {
 			return nil, fmt.Errorf("table `%s` has an invalid name", table.Name)

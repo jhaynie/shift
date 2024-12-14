@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -26,38 +25,12 @@ var generateCmd = &cobra.Command{
 	},
 }
 
-func driverFromURL(urlstr string) (string, string, error) {
-	u, err := url.Parse(urlstr)
-	if err != nil {
-		return "", "", err
-	}
-	switch u.Scheme {
-	case "postgres", "postgresql", "pgx":
-		return "pgx", u.Scheme, nil
-	case "mysql":
-		return "mysql", u.Scheme, nil
-	case "sqlite":
-		return "sqlite", u.Scheme, nil
-	case "":
-		return "", "", fmt.Errorf("expected --url that provides the database connection url")
-	}
-	return "", u.Scheme, fmt.Errorf("unsupported protocol: %s", u.Scheme)
-}
-
 var generateSchemaCmd = &cobra.Command{
 	Use:   "schema",
 	Short: "Generate schema from an existing database",
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := newLogger(cmd)
-		url, _ := cmd.Flags().GetString("url")
-		driver, protocol, err := driverFromURL(url)
-		if err != nil {
-			logger.Fatal("%s", err)
-		}
-		db, err := sql.Open(driver, url)
-		if err != nil {
-			logger.Fatal("Unable to connect to database: %v", err)
-		}
+		db, protocol := connectToDB(cmd, logger, "", false)
 		defer db.Close()
 		tables, _ := cmd.Flags().GetStringSlice("table")
 		dbschema, err := migrator.ToSchema(protocol, migrator.ToSchemaArgs{
@@ -125,5 +98,5 @@ func init() {
 	generateSchemaCmd.Flags().StringSlice("table", []string{}, "table to filter when generating")
 	generateSchemaCmd.Flags().StringP("format", "f", "json", "the output format: json, yaml")
 
-	generateSchemaCmd.Flags().String("url", os.Getenv("DATABASE_URL"), "the database url")
+	addUrlFlag(generateSchemaCmd)
 }
