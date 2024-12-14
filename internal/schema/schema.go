@@ -55,3 +55,17 @@ func Load(filename string) (*SchemaJson, error) {
 	}
 	return &schema, nil
 }
+
+type SchemaJsonForOutput struct {
+	// The URL to the Shift schema.
+	Schema string `json:"$schema" yaml:"-" mapstructure:"-"`
+
+	// The version of the Shift configuration file.
+	Version string `json:"version" yaml:"version" mapstructure:"version"`
+
+	// The database configuration for the migration to use.
+	Database SchemaJsonDatabase `json:"database" yaml:"database" mapstructure:"database"`
+
+	// The tables to manage in the migration.
+	Tables []SchemaJsonTablesElem `json:"tables" yaml:"tables" mapstructure:"tables"`
+}

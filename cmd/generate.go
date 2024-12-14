@@ -15,6 +15,7 @@ import (
 	"github.com/jhaynie/shift/internal/schema"
 	csys "github.com/shopmonkeyus/go-common/sys"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 var generateCmd = &cobra.Command{
@@ -59,7 +60,7 @@ var generateSchemaCmd = &cobra.Command{
 		}
 		defer db.Close()
 		tables, _ := cmd.Flags().GetStringSlice("table")
-		jsonschema, err := migrator.ToSchema(protocol, migrator.ToSchemaArgs{
+		dbschema, err := migrator.ToSchema(protocol, migrator.ToSchemaArgs{
 			Context:     context.Background(),
 			DB:          db,
 			Logger:      logger,
@@ -68,11 +69,27 @@ var generateSchemaCmd = &cobra.Command{
 		if err != nil {
 			logger.Fatal("error generating schema: %s", err)
 		}
-		buf, err := json.MarshalIndent(jsonschema, " ", "  ")
-		if err != nil {
-			logger.Fatal("error serializing json: %s", err)
+		outSchema := schema.SchemaJsonForOutput{
+			Schema:   dbschema.Schema,
+			Version:  dbschema.Version,
+			Database: dbschema.Database,
+			Tables:   dbschema.Tables,
 		}
-		fmt.Println(string(buf))
+		format, _ := cmd.Flags().GetString("format")
+		var buf []byte
+		switch format {
+		case "yaml", "yml":
+			buf, err = yaml.Marshal(outSchema)
+			if err == nil {
+				buf = []byte("# yaml-language-server: $schema=" + schema.DefaultSchema + "\n" + string(buf))
+			}
+		default:
+			buf, err = json.MarshalIndent(outSchema, " ", "  ")
+		}
+		if err != nil {
+			logger.Fatal("serialization error: %s", err)
+		}
+		fmt.Print(string(buf))
 	},
 }
 
@@ -106,6 +123,7 @@ func init() {
 	generateCmd.AddCommand(generateSQLCmd)
 
 	generateSchemaCmd.Flags().StringSlice("table", []string{}, "table to filter when generating")
+	generateSchemaCmd.Flags().StringP("format", "f", "json", "the output format: json, yaml")
 
 	generateSchemaCmd.Flags().String("url", os.Getenv("DATABASE_URL"), "the database url")
 }
