@@ -12,6 +12,10 @@ type MysqlMigrator struct {
 
 var _ migrator.Migrator = (*MysqlMigrator)(nil)
 
+func (p *MysqlMigrator) Process(schema *schema.SchemaJson) error {
+	return nil
+}
+
 func (p *MysqlMigrator) Migrate(args migrator.MigratorArgs) error {
 	return nil
 }

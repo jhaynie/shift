@@ -18,6 +18,16 @@ type PostgresMigrator struct {
 var _ migrator.Migrator = (*PostgresMigrator)(nil)
 var _ migrator.TableGenerator = (*PostgresMigrator)(nil)
 
+func (p *PostgresMigrator) Process(schema *schema.SchemaJson) error {
+	for _, table := range schema.Tables {
+		for i, col := range table.Columns {
+			col.NativeType = ToNativeType(col)
+			table.Columns[i] = col
+		}
+	}
+	return nil
+}
+
 func (p *PostgresMigrator) Migrate(args migrator.MigratorArgs) error {
 	if args.Drop {
 		var out strings.Builder

@@ -31,6 +31,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jhaynie/shift/internal/migrator"
 	"github.com/shopmonkeyus/go-common/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -113,24 +114,6 @@ func addUrlFlag(cmd *cobra.Command) {
 	cmd.Flags().String("url", os.Getenv("DATABASE_URL"), "the database url")
 }
 
-func driverFromURL(urlstr string) (string, string, error) {
-	u, err := url.Parse(urlstr)
-	if err != nil {
-		return "", "", err
-	}
-	switch u.Scheme {
-	case "postgres", "postgresql", "pgx":
-		return "pgx", u.Scheme, nil
-	case "mysql":
-		return "mysql", u.Scheme, nil
-	case "sqlite":
-		return "sqlite", u.Scheme, nil
-	case "":
-		return "", "", fmt.Errorf("expected --url that provides the database connection url")
-	}
-	return "", u.Scheme, fmt.Errorf("unsupported protocol: %s", u.Scheme)
-}
-
 func dropDatabase(logger logger.Logger, protocol string, driver string, urlstr string) {
 	var currentDB string
 	var newurl string
@@ -175,7 +158,7 @@ func connectToDB(cmd *cobra.Command, logger logger.Logger, url string, drop bool
 		}
 		url = urlstr
 	}
-	driver, protocol, err := driverFromURL(url)
+	driver, protocol, err := migrator.DriverFromURL(url)
 	if err != nil {
 		logger.Fatal("%s", err)
 	}

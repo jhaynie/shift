@@ -29,9 +29,13 @@ const (
 )
 
 type MigrateColumn struct {
-	Change MigrateColumnChangeType
-	Name   string // column name
-	Type   string // this is the native type, not the schema type
+	Change     MigrateColumnChangeType
+	Name       string // column name
+	Ref        schema.SchemaJsonTablesElemColumnsElem
+	Previous   schema.SchemaJsonTablesElemColumnsElem
+	ChangeType string // what is changing, the type, etc
+	ChangeFrom string // what its going from
+	ChangeTo   string /// what its going to
 }
 
 type MigrateIndex struct {
@@ -43,6 +47,7 @@ type MigrateIndex struct {
 type MigrateChanges struct {
 	Change  MigrateTableChangeType
 	Table   string
+	Ref     schema.SchemaJsonTablesElem
 	Columns []MigrateColumn
 	Indexes []MigrateIndex
 }
@@ -63,6 +68,9 @@ type ToSchemaArgs struct {
 }
 
 type Migrator interface {
+	// Process a schema after loading it
+	Process(schema *schema.SchemaJson) error
+
 	// Migrate will compare the schema against the database and apply any necessary changes.
 	Migrate(args MigratorArgs) error
 
@@ -105,4 +113,21 @@ func FromSchema(protocol string, schema *schema.SchemaJson, out io.Writer) error
 		return fmt.Errorf("protocol: %s not supported", protocol)
 	}
 	return migrator.FromSchema(schema, out)
+}
+
+func Load(filename string) (*schema.SchemaJson, error) {
+	dbschema, err := schema.Load(filename)
+	if err != nil {
+		return nil, err
+	}
+	_, protocol, err := DriverFromURL(dbschema.Database.Url.(string))
+	if err != nil {
+		return nil, fmt.Errorf("error determining protocol from database url: %s", err)
+	}
+	migrator := migrators[protocol]
+	if migrator == nil {
+		return nil, fmt.Errorf("protocol: %s not supported", protocol)
+	}
+	err = migrator.Process(dbschema)
+	return dbschema, err
 }

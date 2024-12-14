@@ -8,6 +8,7 @@ import (
 	"os"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jhaynie/shift/internal/diff"
 	"github.com/jhaynie/shift/internal/migrator"
 	_ "github.com/jhaynie/shift/internal/migrator/mysql"
 	_ "github.com/jhaynie/shift/internal/migrator/postgres"
@@ -90,13 +91,51 @@ var generateSQLCmd = &cobra.Command{
 	},
 }
 
+var generateDiffCmd = &cobra.Command{
+	Use:   "diff [file]",
+	Args:  cobra.ExactArgs(1),
+	Short: "Generate diff from a schema",
+	Run: func(cmd *cobra.Command, args []string) {
+		logger := newLogger(cmd)
+		file := args[0]
+		if !csys.Exists(file) {
+			logger.Fatal("file %s does not exists or is not accessible", file)
+		}
+		newSchema, err := migrator.Load(file)
+		if err != nil {
+			logger.Fatal("%s", err)
+		}
+		db, protocol := connectToDB(cmd, logger, newSchema.Database.Url.(string), false)
+		defer db.Close()
+		existingSchema, err := migrator.ToSchema(protocol, migrator.ToSchemaArgs{
+			Context: context.Background(),
+			Logger:  logger,
+			DB:      db,
+		})
+		if err != nil {
+			logger.Fatal("%s", err)
+		}
+		changes, err := diff.Diff(logger, schema.DatabaseDriverType(protocol), newSchema, existingSchema)
+		if err != nil {
+			logger.Fatal("%s", err)
+		}
+		if len(changes) == 0 {
+			fmt.Println("no changes detected")
+			return
+		}
+		diff.FormatDiff(changes, os.Stdout)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(generateCmd)
 	generateCmd.AddCommand(generateSchemaCmd)
 	generateCmd.AddCommand(generateSQLCmd)
+	generateCmd.AddCommand(generateDiffCmd)
 
 	generateSchemaCmd.Flags().StringSlice("table", []string{}, "table to filter when generating")
 	generateSchemaCmd.Flags().StringP("format", "f", "json", "the output format: json, yaml")
 
 	addUrlFlag(generateSchemaCmd)
+	addUrlFlag(generateDiffCmd)
 }

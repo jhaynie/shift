@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/jhaynie/shift/internal/migrator/types"
@@ -281,4 +282,23 @@ func GenerateCreateStatement(name string, table types.TableDetail, generator Tab
 		}
 	}
 	return sql.String()
+}
+
+// DriverFromURL returns a driver and protocol from a database url
+func DriverFromURL(urlstr string) (string, string, error) {
+	u, err := url.Parse(urlstr)
+	if err != nil {
+		return "", "", err
+	}
+	switch u.Scheme {
+	case "postgres", "postgresql", "pgx":
+		return "pgx", "postgres", nil
+	case "mysql":
+		return "mysql", "mysql", nil
+	case "sqlite":
+		return "sqlite", "sqlite", nil
+	case "":
+		return "", "", fmt.Errorf("expected --url that provides the database connection url")
+	}
+	return "", "", fmt.Errorf("unsupported protocol: %s", u.Scheme)
 }
