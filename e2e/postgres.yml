@@ -62,3 +62,12 @@ tables:
         subtype: json
       - name: bool
         type: boolean
+      - name: intarr
+        type: int
+        isArray: true
+      - name: verysmallint
+        type: int
+        default:
+          postgres: "0"
+        nativeType:
+          postgres: int2

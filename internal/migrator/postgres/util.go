@@ -101,9 +101,9 @@ func DataTypeToType(val string, nativeType string) (schema.SchemaJsonTablesElemC
 	switch val {
 	case "text", "uuid", "json", "jsonb", "xml", "cidr", "bit", "bit varying", "bytea", "character", "character varying", "circle", "inet", "interval", "line", "lseg", "macaddr", "macaddr8", "path", "pg_snapshot", "point", "polygon", "tsquery", "tsvector", "txid_snapshot":
 		return schema.SchemaJsonTablesElemColumnsElemTypeString, false, nil
-	case "integer", "bigint", "bigserial", "pg_lsn", "smallint", "smallserial", "serial":
+	case "integer", "int2", "int4", "int8", "bigint", "bigserial", "pg_lsn", "smallint", "smallserial", "serial", "decimal":
 		return schema.SchemaJsonTablesElemColumnsElemTypeInt, false, nil
-	case "real", "double precision", "money", "numeric":
+	case "real", "double precision", "money", "numeric", "float4", "float8":
 		return schema.SchemaJsonTablesElemColumnsElemTypeFloat, false, nil
 	case "date", "time", "timestamp", "timestamp with time zone", "timestamp without time zone":
 		return schema.SchemaJsonTablesElemColumnsElemTypeDatetime, false, nil
@@ -224,24 +224,28 @@ func ToUDTName(column types.ColumnDetail) (string, bool) {
 	if column.MaxLength != nil && *column.MaxLength > 0 {
 		val = column.UDTName + fmt.Sprintf("(%d)", *column.MaxLength)
 	} else if column.NumericPrecision != nil {
-		if column.DataType == "int" && (*column.NumericPrecision == 64 || *column.NumericPrecision == 32) && (column.NumericScale == nil || *column.NumericScale == 0) {
+		switch {
+		case column.DataType == "int" && (*column.NumericPrecision == 64 || *column.NumericPrecision == 32) && (column.NumericScale == nil || *column.NumericScale == 0):
 			// this is a normal int
-		} else if column.DataType == "float" && (*column.NumericPrecision == 64 || *column.NumericPrecision == 24) && (column.NumericScale == nil || *column.NumericScale == 0) {
+			break
+		case column.DataType == "int" && *column.NumericPrecision == 16:
+			// this is a small int
+			val = "int2"
+		case column.DataType == "float" && (*column.NumericPrecision == 64 || *column.NumericPrecision == 24) && (column.NumericScale == nil || *column.NumericScale == 0):
 			// this is a normal float
-		} else {
-			if column.DataType == "float" && column.UDTName == "float8" && column.NumericScale == nil && *column.NumericPrecision == 53 {
-				// this is double precision type
-				val = "double precision"
-			} else {
-				// this is an abitrary number
-				if column.NumericScale != nil {
-					val = column.UDTName + fmt.Sprintf("(%d,%d)", *column.NumericPrecision, *column.NumericScale)
-				} else {
-					val = column.UDTName + fmt.Sprintf("(%d)", *column.NumericPrecision)
-				}
-			}
+			break
+		case column.DataType == "float" && column.UDTName == "float8" && column.NumericScale == nil && *column.NumericPrecision == 53:
+			// this is double precision type
+			val = "double precision"
+		case column.NumericScale != nil:
+			// this is an abitrary number with scale
+			val = column.UDTName + fmt.Sprintf("(%d,%d)", *column.NumericPrecision, *column.NumericScale)
+		default:
+			// this is an abitrary number
+			val = column.UDTName + fmt.Sprintf("(%d)", *column.NumericPrecision)
 		}
 	}
+	// if the type starts with underscore, its an array
 	if val != "" && val[0:1] == "_" {
 		return val[1:] + "[]", true
 	}
