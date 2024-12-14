@@ -190,7 +190,6 @@ func GenerateInfoTables(ctx context.Context, logger logger.Logger, db *sql.DB, o
 			table.Columns = append(table.Columns, detail)
 		}
 	}
-	fmt.Println("tables", tables)
 	if len(tables) > 0 {
 		constraintQuery := generateInfoTableConstraintsQuery(config)
 		logger.Trace("sql: %s", constraintQuery)

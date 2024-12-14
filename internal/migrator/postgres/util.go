@@ -209,7 +209,7 @@ func ToNativeType(column schema.SchemaJsonTablesElemColumnsElem) *schema.SchemaJ
 				if column.MaxLength != nil && *column.MaxLength > 0 {
 					return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray(fmt.Sprintf("bit(%d)", *column.MaxLength), column.IsArray))
 				}
-				return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("bit", column.IsArray))
+				return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("bit(1)", column.IsArray))
 			case schema.SchemaJsonTablesElemColumnsElemSubtypeJson:
 				return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("jsonb", column.IsArray))
 			case schema.SchemaJsonTablesElemColumnsElemSubtypeUuid:
