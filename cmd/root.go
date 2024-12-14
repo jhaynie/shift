@@ -132,37 +132,39 @@ func driverFromURL(urlstr string) (string, string, error) {
 }
 
 func dropDatabase(logger logger.Logger, protocol string, driver string, urlstr string) {
+	var currentDB string
+	var newurl string
 	switch protocol {
 	case "postgres":
 		u, err := url.Parse(urlstr)
 		if err != nil {
 			logger.Fatal("%s", err)
 		}
-		currentDB := u.Path[1:] // get the current database from the path
-		u.Path = "/postgres"    // connect without providing a database
-		logger.Trace("%s", u.String())
-		db, err := sql.Open(driver, u.String())
-		if err != nil {
-			logger.Fatal("Unable to connect to database: %v", err)
-		}
-		ts := time.Now()
-		q := fmt.Sprintf("DROP DATABASE IF EXISTS %s", currentDB)
-		logger.Trace("sql: %s", q)
-		if _, err := db.Exec(q); err != nil {
-			logger.Fatal("error dropping database: %s. %s", currentDB, err)
-		}
-		logger.Info("dropped database %s in %v", currentDB, time.Since(ts))
-		ts = time.Now()
-		q = fmt.Sprintf("CREATE DATABASE %s", currentDB)
-		logger.Trace("sql: %s", q)
-		if _, err := db.Exec(q); err != nil {
-			logger.Fatal("error creating database: %s. %s", currentDB, err)
-		}
-		db.Close()
-		logger.Info("created database %s in %v", currentDB, time.Since(ts))
+		currentDB = u.Path[1:] // get the current database from the path
+		u.Path = "/postgres"   // connect without providing a database
+		newurl = u.String()
 	default:
 		logger.Fatal("no drop database provided for %s", protocol)
 	}
+	db, err := sql.Open(driver, newurl)
+	if err != nil {
+		logger.Fatal("Unable to connect to database: %v", err)
+	}
+	ts := time.Now()
+	q := fmt.Sprintf("DROP DATABASE IF EXISTS %s", currentDB)
+	logger.Trace("sql: %s", q)
+	if _, err := db.Exec(q); err != nil {
+		logger.Fatal("error dropping database: %s. %s", currentDB, err)
+	}
+	logger.Info("dropped database %s in %v", currentDB, time.Since(ts))
+	ts = time.Now()
+	q = fmt.Sprintf("CREATE DATABASE %s", currentDB)
+	logger.Trace("sql: %s", q)
+	if _, err := db.Exec(q); err != nil {
+		logger.Fatal("error creating database: %s. %s", currentDB, err)
+	}
+	db.Close()
+	logger.Info("created database %s in %v", currentDB, time.Since(ts))
 }
 
 func connectToDB(cmd *cobra.Command, logger logger.Logger, url string, drop bool) (*sql.DB, string) {
