@@ -110,7 +110,11 @@ func DataTypeToType(val string, nativeType string) (schema.SchemaJsonTablesElemC
 	case "boolean":
 		return schema.SchemaJsonTablesElemColumnsElemTypeBoolean, false, nil
 	case "ARRAY":
-		r, _, err := DataTypeToType(nativeType[1:], "")
+		dt := nativeType
+		if dt[0:1] == "_" {
+			dt = dt[1:]
+		}
+		r, _, err := DataTypeToType(dt, "")
 		return r, true, err
 	}
 	return "", false, fmt.Errorf("unhandled data type: %s", val)
