@@ -119,11 +119,11 @@ func validateDefaultValue(detail types.ColumnDetail, column SchemaJsonTablesElem
 		switch column.Type {
 		case SchemaJsonTablesElemColumnsElemTypeInt:
 			if !util.IsInteger.MatchString(*detail.Default) {
-				return fmt.Errorf("invalid %s default value: %s for column: %s. should be: %s", column.Type, *detail.Default, column.Name, util.IsNumber.String())
+				return fmt.Errorf("invalid %s default value: %s for column: %s. should be: %s", column.Type, *detail.Default, column.Name, util.IsInteger.String())
 			}
 		case SchemaJsonTablesElemColumnsElemTypeFloat:
 			if !util.IsFloat.MatchString(*detail.Default) {
-				return fmt.Errorf("invalid %s default value: %s for column: %s. should be: %s", column.Type, *detail.Default, column.Name, util.IsNumber.String())
+				return fmt.Errorf("invalid %s default value: %s for column: %s. should be: %s", column.Type, *detail.Default, column.Name, util.IsFloat.String())
 			}
 		case SchemaJsonTablesElemColumnsElemTypeBoolean:
 			switch *detail.Default {
