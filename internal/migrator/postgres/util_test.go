@@ -29,6 +29,7 @@ func TestToUDTName(t *testing.T) {
 	assertColumnDetail(t, "numeric(10)", false, types.ColumnDetail{DataType: "int", UDTName: "numeric", NumericPrecision: util.Ptr(int64(10))})
 	assertColumnDetail(t, "numeric(10,3)", false, types.ColumnDetail{DataType: "int", UDTName: "numeric", NumericPrecision: util.Ptr(int64(10)), NumericScale: util.Ptr(int64(3))})
 	assertColumnDetail(t, "int2", false, types.ColumnDetail{DataType: "int", UDTName: "int2", NumericPrecision: util.Ptr(int64(16))})
+	assertColumnDetail(t, "serial", false, types.ColumnDetail{DataType: "int", IsAutoIncrementing: true})
 }
 
 func TestToNativeType(t *testing.T) {
@@ -51,6 +52,7 @@ func TestToNativeType(t *testing.T) {
 	assert.Equal(t, "bit(2)", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeString, Subtype: util.Ptr(schema.SchemaJsonTablesElemColumnsElemSubtypeBit), MaxLength: util.Ptr(2)}).Postgres)
 	assert.Equal(t, "jsonb", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeString, Subtype: util.Ptr(schema.SchemaJsonTablesElemColumnsElemSubtypeJson)}).Postgres)
 	assert.Equal(t, "uuid", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeString, Subtype: util.Ptr(schema.SchemaJsonTablesElemColumnsElemSubtypeUuid)}).Postgres)
+	assert.Equal(t, "serial", *ToNativeType(schema.SchemaJsonTablesElemColumnsElem{Type: schema.SchemaJsonTablesElemColumnsElemTypeInt, AutoIncrement: util.Ptr(true)}).Postgres)
 }
 
 func TestToNativeTypeArray(t *testing.T) {

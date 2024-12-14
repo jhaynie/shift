@@ -182,6 +182,9 @@ func ToNativeType(column schema.SchemaJsonTablesElemColumnsElem) *schema.SchemaJ
 		}
 		return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray("double precision", column.IsArray))
 	case schema.SchemaJsonTablesElemColumnsElemTypeInt:
+		if column.AutoIncrement != nil && *column.AutoIncrement {
+			return schema.ToNativeType(schema.DatabaseDriverPostgres, "serial")
+		}
 		if column.MaxLength != nil && *column.MaxLength > 0 {
 			return schema.ToNativeType(schema.DatabaseDriverPostgres, toMaybeArray(fmt.Sprintf("numeric(%d)", *column.MaxLength), column.IsArray))
 		}
@@ -226,6 +229,9 @@ func ToNativeType(column schema.SchemaJsonTablesElemColumnsElem) *schema.SchemaJ
 
 func toUDTName(column types.ColumnDetail) (string, bool) {
 	val := column.UDTName
+	if column.DataType == "int" && column.IsAutoIncrementing {
+		return "serial", false
+	}
 	if column.MaxLength != nil && *column.MaxLength > 0 {
 		val = column.UDTName + fmt.Sprintf("(%d)", *column.MaxLength)
 	} else if column.NumericPrecision != nil {
@@ -274,7 +280,8 @@ func formatDefault(column types.ColumnDetail) (*string, error) {
 		case "string":
 			if strings.HasSuffix(*val, "::jsonb") {
 				s := *val
-				val = util.Ptr(s[0 : len(s)-7])
+				j := strings.ReplaceAll(s[0:len(s)-7], "\": ", "\":") // clean up extra spaces after keys
+				val = util.Ptr(j)
 			}
 			return dequote(val), nil
 		case "int", "float":

@@ -13,6 +13,7 @@ import (
 type MigrateTableChangeType string
 type MigrateColumnChangeType string
 type MigrateIndexChangeType string
+type MigrateColumnChangeTypeType string
 
 const (
 	CreateTable MigrateTableChangeType = "create table"
@@ -26,16 +27,19 @@ const (
 	CreateIndex MigrateIndexChangeType = "create index"
 	AlterIndex  MigrateIndexChangeType = "alter index"
 	DropIndex   MigrateIndexChangeType = "drop index"
+
+	ColumnTypeChanged        MigrateColumnChangeTypeType = "type changed"
+	ColumnDescriptionChanged MigrateColumnChangeTypeType = "description changed"
+	ColumnNullableChanged    MigrateColumnChangeTypeType = "nullable changed"
+	ColumnDefaultChanged     MigrateColumnChangeTypeType = "default changed"
 )
 
 type MigrateColumn struct {
-	Change     MigrateColumnChangeType
-	Name       string // column name
-	Ref        schema.SchemaJsonTablesElemColumnsElem
-	Previous   schema.SchemaJsonTablesElemColumnsElem
-	ChangeType string // what is changing, the type, etc
-	ChangeFrom string // what its going from
-	ChangeTo   string /// what its going to
+	Change   MigrateColumnChangeType
+	Name     string // column name
+	Ref      schema.SchemaJsonTablesElemColumnsElem
+	Previous schema.SchemaJsonTablesElemColumnsElem
+	Changes  []MigrateColumnChangeTypeType
 }
 
 type MigrateIndex struct {
@@ -44,12 +48,18 @@ type MigrateIndex struct {
 	Columns []string // columns in the index
 }
 
+type MigrateTableDescription struct {
+	From *string
+	To   *string
+}
+
 type MigrateChanges struct {
-	Change  MigrateTableChangeType
-	Table   string
-	Ref     schema.SchemaJsonTablesElem
-	Columns []MigrateColumn
-	Indexes []MigrateIndex
+	Change      MigrateTableChangeType
+	Table       string
+	Ref         schema.SchemaJsonTablesElem
+	Columns     []MigrateColumn
+	Indexes     []MigrateIndex // TODO
+	Description *MigrateTableDescription
 }
 
 type MigratorArgs struct {

@@ -18,10 +18,16 @@ type PostgresMigrator struct {
 var _ migrator.Migrator = (*PostgresMigrator)(nil)
 var _ migrator.TableGenerator = (*PostgresMigrator)(nil)
 
-func (p *PostgresMigrator) Process(schema *schema.SchemaJson) error {
-	for _, table := range schema.Tables {
+func (p *PostgresMigrator) Process(dbschema *schema.SchemaJson) error {
+	for _, table := range dbschema.Tables {
 		for i, col := range table.Columns {
 			col.NativeType = ToNativeType(col)
+			// if this is a serial type, we need to set the default to the generated auto increment sequence
+			if col.Type == schema.SchemaJsonTablesElemColumnsElemTypeInt && col.AutoIncrement != nil && *col.AutoIncrement && col.Default == nil {
+				col.Default = &schema.SchemaJsonTablesElemColumnsElemDefault{
+					Postgres: util.Ptr(fmt.Sprintf("nextval('%s_%s_seq'::regclass)", table.Name, col.Name)),
+				}
+			}
 			table.Columns[i] = col
 		}
 	}
@@ -80,9 +86,8 @@ func (p *PostgresMigrator) ToSchema(args migrator.ToSchemaArgs) (*schema.SchemaJ
 				return nil, fmt.Errorf("error converting column %s with table: %s. %s", column.Name, table, err)
 			}
 			column.DataType = string(dt)
-			column.UDTName, column.IsArray = toUDTName(column)
 			for _, constraint := range detail.Constraints {
-				if constraint.Type == "PRIMARY KEY" {
+				if constraint.Column == column.Name && constraint.Type == "PRIMARY KEY" {
 					column.IsPrimaryKey = true
 					break
 				}
@@ -92,6 +97,7 @@ func (p *PostgresMigrator) ToSchema(args migrator.ToSchemaArgs) (*schema.SchemaJ
 					column.IsAutoIncrementing = true
 				}
 			}
+			column.UDTName, column.IsArray = toUDTName(column)
 			column.Default, err = formatDefault(column)
 			if err != nil {
 				return nil, fmt.Errorf("error validating column: %s table: %s default value: %s", column.Name, table, err)

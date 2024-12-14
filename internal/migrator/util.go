@@ -39,16 +39,20 @@ WHERE
 ORDER BY table_name, ordinal_position`
 
 var infoConstraintsQuery = `SELECT
-	constraint_name,
-	table_name,
-	constraint_type
+	tc.constraint_name,
+	tc.table_name,
+	c.column_name,
+	tc.constraint_type
 FROM
-	information_schema.table_constraints
+	information_schema.table_constraints tc
+JOIN information_schema.constraint_column_usage AS ccu USING (constraint_schema, constraint_name) 
+JOIN information_schema.columns AS c ON c.table_schema = tc.constraint_schema
+  AND tc.table_name = c.table_name AND ccu.column_name = c.column_name
 WHERE
-	table_schema NOT IN (%s)
-	AND table_catalog = %s
-	AND constraint_type != 'CHECK'
-ORDER BY table_name`
+	tc.table_schema NOT IN (%s)
+	AND tc.table_catalog = %s
+	AND tc.constraint_type != 'CHECK'
+ORDER BY tc.table_name`
 
 type infoQueryConfig struct {
 	extraSchemaExcludes  []string
@@ -201,15 +205,17 @@ func GenerateInfoTables(ctx context.Context, logger logger.Logger, db *sql.DB, o
 		if cres != nil {
 			defer cres.Close()
 			for cres.Next() {
-				var name, tablename, ctype string
-				if err := cres.Scan(&name, &tablename, &ctype); err != nil {
+				var name, tablename, column, ctype string
+				if err := cres.Scan(&name, &tablename, &column, &ctype); err != nil {
 					return nil, err
 				}
+				fmt.Println("name", name, "table", tablename, "column", column)
 				table := tables[tablename]
 				if table != nil {
 					table.Constraints = append(table.Constraints, types.ConstraintDetail{
-						Name: name,
-						Type: ctype,
+						Name:   name,
+						Type:   ctype,
+						Column: column,
 					})
 				}
 			}
@@ -242,8 +248,12 @@ func GenerateCreateStatement(name string, table types.TableDetail, generator Tab
 		sql.WriteString("   ")
 		sql.WriteString(generator.QuoteColumn(column.Name))
 		sql.WriteString(" ")
-		sql.WriteString(column.UDTName)
 		var attrs []string
+		if column.IsAutoIncrementing {
+			sql.WriteString("SERIAL")
+		} else {
+			sql.WriteString(column.UDTName)
+		}
 		if !column.IsNullable && column.Default == nil {
 			attrs = append(attrs, "NOT NULL")
 		}

@@ -7,7 +7,7 @@ tables:
   - name: "table1"
     columns:
       - name: id
-        type: string
+        type: int
         primaryKey: true
         autoIncrement: true
         description: >-

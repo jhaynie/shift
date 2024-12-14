@@ -24,6 +24,7 @@ type ColumnDetail struct {
 }
 
 type ConstraintDetail struct {
-	Name string
-	Type string
+	Name   string
+	Type   string
+	Column string
 }

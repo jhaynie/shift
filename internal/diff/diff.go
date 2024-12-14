@@ -1,41 +1,102 @@
 package diff
 
 import (
+	"fmt"
 	"io"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/jhaynie/shift/internal/migrator"
 	"github.com/jhaynie/shift/internal/schema"
-	"github.com/jhaynie/shift/internal/util"
 	"github.com/shopmonkeyus/go-common/logger"
 )
 
-func diffColumn(from schema.SchemaJsonTablesElemColumnsElem, to schema.SchemaJsonTablesElemColumnsElem) *migrator.MigrateColumn {
-	var changeType *string // what is changing, the type, etc
-	var changeFrom *string // what its going from
-	var changeTo *string   /// what its going to
-	if toNativeType(from.NativeType) != toNativeType(to.NativeType) {
-		changeType = util.Ptr("type")
-		changeFrom = util.Ptr(toNativeType(from.NativeType))
-		changeTo = util.Ptr(toNativeType(to.NativeType))
+func safeNil(val *string) string {
+	if val == nil {
+		return "NULL"
 	}
-	if changeType != nil {
-		return &migrator.MigrateColumn{
-			Change:     migrator.AlterColumn,
-			Name:       to.Name,
-			Ref:        to,
-			Previous:   from,
-			ChangeType: *changeType,
-			ChangeFrom: *changeFrom,
-			ChangeTo:   *changeTo,
+	return *val
+}
+
+func safeBoolNil(val *bool) string {
+	if val == nil {
+		return "NULL"
+	}
+	if *val {
+		return "true"
+	}
+	return "false"
+}
+
+func pointerChanged[T comparable](a *T, b *T) bool {
+	if a == nil && b != nil {
+		return true
+	}
+	if b == nil && a != nil {
+		return true
+	}
+	if a == nil && b == nil {
+		return false
+	}
+	return *a != *b
+}
+
+func toDefaultType(val *schema.SchemaJsonTablesElemColumnsElemDefault) *string {
+	if val != nil {
+		if val.Postgres != nil {
+			return val.Postgres
+		}
+		if val.Mysql != nil {
+			return val.Mysql
+		}
+		if val.Sqlite != nil {
+			return val.Sqlite
 		}
 	}
 	return nil
 }
 
+func diffColumn(from schema.SchemaJsonTablesElemColumnsElem, to schema.SchemaJsonTablesElemColumnsElem) (*migrator.MigrateColumn, error) {
+	var changes []migrator.MigrateColumnChangeTypeType
+	if toNativeType(from.NativeType) != toNativeType(to.NativeType) {
+		changes = append(changes, migrator.ColumnTypeChanged)
+	}
+	if pointerChanged(toDefaultType(from.Default), toDefaultType(to.Default)) {
+		changes = append(changes, migrator.ColumnDefaultChanged)
+	}
+	if pointerChanged(from.Description, to.Description) {
+		changes = append(changes, migrator.ColumnDescriptionChanged)
+	}
+	if safeBoolNil(from.Nullable) != safeBoolNil(to.Nullable) && from.Nullable != nil && to.Nullable != nil {
+		changes = append(changes, migrator.ColumnNullableChanged)
+	}
+	if safeBoolNil(from.PrimaryKey) != safeBoolNil(to.PrimaryKey) && from.PrimaryKey != nil && to.PrimaryKey != nil {
+		return nil, fmt.Errorf("you cannot change the PRIMARY KEY of a column")
+	}
+	if safeBoolNil(from.Unique) != safeBoolNil(to.Unique) {
+		return nil, fmt.Errorf("you cannot change the UNIQUE consraint of a column")
+	}
+	if safeBoolNil(from.AutoIncrement) != safeBoolNil(to.AutoIncrement) && from.AutoIncrement != nil && to.AutoIncrement != nil {
+		fmt.Println(safeBoolNil(from.AutoIncrement), safeBoolNil(to.AutoIncrement))
+		return nil, fmt.Errorf("you cannot change the AUTO INCREMENT of a column")
+	}
+
+	if len(changes) > 0 {
+		return &migrator.MigrateColumn{
+			Change:   migrator.AlterColumn,
+			Name:     to.Name,
+			Ref:      to,
+			Previous: from,
+			Changes:  changes,
+		}, nil
+	}
+	return nil, nil
+}
+
 func Diff(logger logger.Logger, driver schema.DatabaseDriverType, to *schema.SchemaJson, from *schema.SchemaJson) ([]migrator.MigrateChanges, error) {
 	processedTables := make(map[string]bool)
 	var res []migrator.MigrateChanges
+	var err error
 
 	fromTables := make(map[string]*schema.SchemaJsonTablesElem)
 	toTables := make(map[string]*schema.SchemaJsonTablesElem)
@@ -52,6 +113,13 @@ func Diff(logger logger.Logger, driver schema.DatabaseDriverType, to *schema.Sch
 			processedTables[table] = true
 			logger.Debug("found table %s to already exist, need to validate", table)
 			var changes []migrator.MigrateColumn
+			var descriptionChange *migrator.MigrateTableDescription
+			if pointerChanged(detail.Description, ref.Description) {
+				descriptionChange = &migrator.MigrateTableDescription{
+					From: detail.Description,
+					To:   ref.Description,
+				}
+			}
 			processedColumns := make(map[string]bool)
 			for _, toColumn := range ref.Columns {
 				processedColumns[toColumn.Name] = true
@@ -60,7 +128,10 @@ func Diff(logger logger.Logger, driver schema.DatabaseDriverType, to *schema.Sch
 				for _, fromColumn := range detail.Columns {
 					if fromColumn.Name == toColumn.Name {
 						found = true
-						changedRef = diffColumn(fromColumn, toColumn)
+						changedRef, err = diffColumn(fromColumn, toColumn)
+						if err != nil {
+							return nil, fmt.Errorf("column %s for table %s encountered an error: %s", table, toColumn.Name, err)
+						}
 						break
 					}
 				}
@@ -91,10 +162,19 @@ func Diff(logger logger.Logger, driver schema.DatabaseDriverType, to *schema.Sch
 			}
 			if len(changes) > 0 {
 				res = append(res, migrator.MigrateChanges{
-					Change:  migrator.AlterTable,
-					Table:   table,
-					Columns: changes,
-					Ref:     *detail,
+					Change:      migrator.AlterTable,
+					Table:       table,
+					Columns:     changes,
+					Ref:         *detail,
+					Description: descriptionChange,
+				})
+			} else if descriptionChange != nil {
+				res = append(res, migrator.MigrateChanges{
+					Change:      migrator.AlterTable,
+					Table:       table,
+					Columns:     nil,
+					Ref:         *detail,
+					Description: descriptionChange,
 				})
 			}
 		} else {
@@ -132,7 +212,16 @@ var (
 	createSymbol = "[+]"
 	dropSymbol   = "[-]"
 	alterSymbol  = "[*]"
+
+	multiPadding = strings.Repeat(" ", 23)
 )
+
+func plural(count int, singular string, plural string) string {
+	if count == 0 || count > 1 {
+		return plural
+	}
+	return singular
+}
 
 func FormatDiff(changes []migrator.MigrateChanges, out io.Writer) {
 	whiteBold(out, "The following changes need to be applied to bring your database up-to-date:\n\n")
@@ -141,18 +230,25 @@ func FormatDiff(changes []migrator.MigrateChanges, out io.Writer) {
 		case migrator.CreateTable:
 			green(out, "%s Create ", createSymbol)
 			magenta(out, "%s", changeset.Table)
-			green(out, " with %d columns:\n", len(changeset.Ref.Columns))
+			green(out, " with %d %s:\n", len(changeset.Ref.Columns), plural(len(changeset.Ref.Columns), "column", "columns"))
 			formatAddColumnsDiff(changeset, out)
 		case migrator.DropTable:
 			red(out, "%s Drop ", dropSymbol)
 			magenta(out, "%s", changeset.Table)
-			red(out, " with %d columns:\n", len(changeset.Ref.Columns))
+			red(out, " with %d %s:\n", len(changeset.Ref.Columns), plural(len(changeset.Ref.Columns), "column", "columns"))
 			formatDropColumnsDiff(changeset, out)
 		case migrator.AlterTable:
 			blue(out, "%s Alter ", alterSymbol)
 			magenta(out, "%s", changeset.Table)
-			blue(out, " with %d column changes:\n", len(changeset.Columns))
-			formatAlterColumnsDiff(changeset, out)
+			if len(changeset.Columns) > 0 {
+				blue(out, " with %d %s:\n", len(changeset.Columns), plural(len(changeset.Columns), "column", "columns"))
+				formatAlterColumnsDiff(changeset, out)
+			} else if changeset.Description != nil {
+				blue(out, " with description changed from ")
+				io.WriteString(out, color.YellowString(safeNil(changeset.Description.From)))
+				io.WriteString(out, color.BlueString(" to "))
+				io.WriteString(out, color.YellowString(safeNil(changeset.Description.To)))
+			}
 		}
 		io.WriteString(out, "\n")
 	}
@@ -168,11 +264,11 @@ func toNativeType(nt *schema.SchemaJsonTablesElemColumnsElemNativeType) string {
 	if nt.Sqlite != nil {
 		return *nt.Sqlite
 	}
-	return "<nil>"
+	return "NULL"
 }
 
 func printColumnChangeRow(column schema.SchemaJsonTablesElemColumnsElem, out io.Writer) {
-	whiteBold(out, "%-20s ", column.Name)
+	whiteBold(out, "%-15s ", column.Name)
 	white(out, "%-8s ", column.Type)
 	black(out, "%s", toNativeType(column.NativeType))
 	io.WriteString(out, "\n")
@@ -194,7 +290,57 @@ func formatDropColumnsDiff(change migrator.MigrateChanges, out io.Writer) {
 
 func formatAlterColumnsDiff(change migrator.MigrateChanges, out io.Writer) {
 	for _, column := range change.Columns {
-		blue(out, "    %s %s %s %s -> %s\n", alterSymbol, column.Name, column.ChangeType, column.ChangeFrom, column.ChangeTo)
-		// printColumnChangeRow(column, out)
+		blue(out, "    %s ", alterSymbol)
+		whiteBold(out, "%-15s ", column.Name)
+		changes := make([]string, 0)
+		for _, change := range column.Changes {
+			var val strings.Builder
+			val.WriteString(string(change))
+			val.WriteString(" from ")
+			switch change {
+			case migrator.ColumnTypeChanged:
+				val.WriteString(color.YellowString(string(column.Previous.Type)))
+				val.WriteString(color.BlackString(" (" + toNativeType(column.Previous.NativeType) + ")"))
+			case migrator.ColumnDefaultChanged:
+				val.WriteString(color.YellowString(safeNil(toDefaultType(column.Previous.Default))))
+			case migrator.ColumnDescriptionChanged:
+				val.WriteString(color.YellowString(safeNil(column.Previous.Description)))
+			case migrator.ColumnNullableChanged:
+				val.WriteString(color.YellowString(safeBoolNil(column.Previous.Nullable)))
+			default:
+				panic("change " + change + " not handled")
+			}
+			val.WriteString(" to ")
+			switch change {
+			case migrator.ColumnTypeChanged:
+				val.WriteString(color.YellowString(string(column.Ref.Type)))
+				val.WriteString(color.BlackString(" (" + toNativeType(column.Ref.NativeType) + ")"))
+			case migrator.ColumnDefaultChanged:
+				val.WriteString(color.YellowString(safeNil(toDefaultType(column.Ref.Default))))
+			case migrator.ColumnDescriptionChanged:
+				val.WriteString(color.YellowString(safeNil(column.Ref.Description)))
+			case migrator.ColumnNullableChanged:
+				val.WriteString(color.YellowString(safeBoolNil(column.Ref.Nullable)))
+			default:
+				panic("change " + change + " not handled")
+			}
+			changes = append(changes, val.String())
+		}
+		if len(changes) == 1 {
+			white(out, "%s\n", changes[0])
+		} else {
+			white(out, "%s\n", changes[0])
+			for _, change := range changes[1:] {
+				white(out, "%s %s\n", multiPadding, change)
+			}
+		}
+		io.WriteString(out, "\n")
+	}
+	if change.Description != nil {
+		io.WriteString(out, color.BlueString("    table description changed from "))
+		io.WriteString(out, color.YellowString(safeNil(change.Description.From)))
+		io.WriteString(out, color.BlueString(" to "))
+		io.WriteString(out, color.YellowString(safeNil(change.Description.To)))
+		io.WriteString(out, "\n")
 	}
 }
