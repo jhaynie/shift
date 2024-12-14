@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/jhaynie/shift/internal/migrator"
 	"github.com/jhaynie/shift/internal/schema"
+	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/shopmonkeyus/go-common/logger"
 )
 
@@ -77,7 +79,6 @@ func diffColumn(from schema.SchemaJsonTablesElemColumnsElem, to schema.SchemaJso
 		return nil, fmt.Errorf("you cannot change the UNIQUE consraint of a column")
 	}
 	if safeBoolNil(from.AutoIncrement) != safeBoolNil(to.AutoIncrement) && from.AutoIncrement != nil && to.AutoIncrement != nil {
-		fmt.Println(safeBoolNil(from.AutoIncrement), safeBoolNil(to.AutoIncrement))
 		return nil, fmt.Errorf("you cannot change the AUTO INCREMENT of a column")
 	}
 
@@ -223,7 +224,28 @@ func plural(count int, singular string, plural string) string {
 	return singular
 }
 
-func FormatDiff(changes []migrator.MigrateChanges, out io.Writer) {
+type DiffFormatType string
+
+const (
+	FormatText DiffFormatType = "text"
+	FormatSQL  DiffFormatType = "sql"
+)
+
+func FormatDiff(format DiffFormatType, driver schema.DatabaseDriverType, changes []migrator.MigrateChanges, out io.Writer) {
+	switch format {
+	case FormatText:
+		formatTextDiff(changes, out)
+	case FormatSQL:
+		formatSQLDiff(driver, changes, out)
+	default:
+		panic("unsupported diff format: " + string(format))
+	}
+}
+
+func formatSQLDiff(driver schema.DatabaseDriverType, changes []migrator.MigrateChanges, out io.Writer) {
+}
+
+func formatTextDiff(changes []migrator.MigrateChanges, out io.Writer) {
 	whiteBold(out, "The following changes need to be applied to bring your database up-to-date:\n\n")
 	for _, changeset := range changes {
 		switch changeset.Change {
@@ -288,6 +310,36 @@ func formatDropColumnsDiff(change migrator.MigrateChanges, out io.Writer) {
 	}
 }
 
+func prettyDiff(diffs []diffmatchpatch.Diff) string {
+	var buff bytes.Buffer
+	for _, diff := range diffs {
+		text := diff.Text
+
+		switch diff.Type {
+		case diffmatchpatch.DiffInsert:
+			_, _ = buff.WriteString("\x1b[32m")
+			_, _ = buff.WriteString(text)
+			_, _ = buff.WriteString("\x1b[0m")
+		case diffmatchpatch.DiffDelete:
+			_, _ = buff.WriteString("\x1b[9m\x1b[31m")
+			_, _ = buff.WriteString(text)
+			_, _ = buff.WriteString("\x1b[0m")
+		case diffmatchpatch.DiffEqual:
+			_, _ = buff.WriteString("\x1b[33m")
+			_, _ = buff.WriteString(text)
+			_, _ = buff.WriteString("\x1b[0m")
+		}
+	}
+
+	return buff.String()
+}
+
+func stringDiff(a string, b string) string {
+	dmp := diffmatchpatch.New()
+	diffs := dmp.DiffMain(a, b, false)
+	return prettyDiff(diffs)
+}
+
 func formatAlterColumnsDiff(change migrator.MigrateChanges, out io.Writer) {
 	for _, column := range change.Columns {
 		blue(out, "    %s ", alterSymbol)
@@ -296,33 +348,38 @@ func formatAlterColumnsDiff(change migrator.MigrateChanges, out io.Writer) {
 		for _, change := range column.Changes {
 			var val strings.Builder
 			val.WriteString(string(change))
-			val.WriteString(" from ")
-			switch change {
-			case migrator.ColumnTypeChanged:
-				val.WriteString(color.YellowString(string(column.Previous.Type)))
-				val.WriteString(color.BlackString(" (" + toNativeType(column.Previous.NativeType) + ")"))
-			case migrator.ColumnDefaultChanged:
-				val.WriteString(color.YellowString(safeNil(toDefaultType(column.Previous.Default))))
-			case migrator.ColumnDescriptionChanged:
-				val.WriteString(color.YellowString(safeNil(column.Previous.Description)))
-			case migrator.ColumnNullableChanged:
-				val.WriteString(color.YellowString(safeBoolNil(column.Previous.Nullable)))
-			default:
-				panic("change " + change + " not handled")
-			}
-			val.WriteString(" to ")
-			switch change {
-			case migrator.ColumnTypeChanged:
-				val.WriteString(color.YellowString(string(column.Ref.Type)))
-				val.WriteString(color.BlackString(" (" + toNativeType(column.Ref.NativeType) + ")"))
-			case migrator.ColumnDefaultChanged:
-				val.WriteString(color.YellowString(safeNil(toDefaultType(column.Ref.Default))))
-			case migrator.ColumnDescriptionChanged:
-				val.WriteString(color.YellowString(safeNil(column.Ref.Description)))
-			case migrator.ColumnNullableChanged:
-				val.WriteString(color.YellowString(safeBoolNil(column.Ref.Nullable)))
-			default:
-				panic("change " + change + " not handled")
+			if change == migrator.ColumnDescriptionChanged {
+				val.WriteString(": ")
+				val.WriteString(stringDiff(safeNil(column.Previous.Description), safeNil(column.Ref.Description)))
+			} else {
+				val.WriteString(" from ")
+				switch change {
+				case migrator.ColumnTypeChanged:
+					val.WriteString(color.YellowString(string(column.Previous.Type)))
+					val.WriteString(color.BlackString(" (" + toNativeType(column.Previous.NativeType) + ")"))
+				case migrator.ColumnDefaultChanged:
+					val.WriteString(color.YellowString(safeNil(toDefaultType(column.Previous.Default))))
+				case migrator.ColumnDescriptionChanged:
+					val.WriteString(color.YellowString(safeNil(column.Previous.Description)))
+				case migrator.ColumnNullableChanged:
+					val.WriteString(color.YellowString(safeBoolNil(column.Previous.Nullable)))
+				default:
+					panic("change " + change + " not handled")
+				}
+				val.WriteString(" to ")
+				switch change {
+				case migrator.ColumnTypeChanged:
+					val.WriteString(color.YellowString(string(column.Ref.Type)))
+					val.WriteString(color.BlackString(" (" + toNativeType(column.Ref.NativeType) + ")"))
+				case migrator.ColumnDefaultChanged:
+					val.WriteString(color.YellowString(safeNil(toDefaultType(column.Ref.Default))))
+				case migrator.ColumnDescriptionChanged:
+					val.WriteString(color.YellowString(safeNil(column.Ref.Description)))
+				case migrator.ColumnNullableChanged:
+					val.WriteString(color.YellowString(safeBoolNil(column.Ref.Nullable)))
+				default:
+					panic("change " + change + " not handled")
+				}
 			}
 			changes = append(changes, val.String())
 		}
@@ -334,13 +391,11 @@ func formatAlterColumnsDiff(change migrator.MigrateChanges, out io.Writer) {
 				white(out, "%s %s\n", multiPadding, change)
 			}
 		}
-		io.WriteString(out, "\n")
 	}
 	if change.Description != nil {
+		io.WriteString(out, "\n")
 		io.WriteString(out, color.BlueString("    table description changed from "))
-		io.WriteString(out, color.YellowString(safeNil(change.Description.From)))
-		io.WriteString(out, color.BlueString(" to "))
-		io.WriteString(out, color.YellowString(safeNil(change.Description.To)))
+		io.WriteString(out, stringDiff(safeNil(change.Description.From), safeNil(change.Description.To)))
 		io.WriteString(out, "\n")
 	}
 }

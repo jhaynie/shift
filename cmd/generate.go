@@ -115,7 +115,8 @@ var generateDiffCmd = &cobra.Command{
 		if err != nil {
 			logger.Fatal("%s", err)
 		}
-		changes, err := diff.Diff(logger, schema.DatabaseDriverType(protocol), newSchema, existingSchema)
+		driver := schema.DatabaseDriverType(protocol)
+		changes, err := diff.Diff(logger, driver, newSchema, existingSchema)
 		if err != nil {
 			logger.Fatal("%s", err)
 		}
@@ -123,7 +124,8 @@ var generateDiffCmd = &cobra.Command{
 			fmt.Println("no changes detected")
 			return
 		}
-		diff.FormatDiff(changes, os.Stdout)
+		format, _ := cmd.Flags().GetString("format")
+		diff.FormatDiff(diff.DiffFormatType(format), driver, changes, os.Stdout)
 	},
 }
 
@@ -138,4 +140,6 @@ func init() {
 
 	addUrlFlag(generateSchemaCmd)
 	addUrlFlag(generateDiffCmd)
+
+	generateDiffCmd.Flags().StringP("format", "f", "text", "the output format: text, sql")
 }

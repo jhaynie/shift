@@ -209,7 +209,6 @@ func GenerateInfoTables(ctx context.Context, logger logger.Logger, db *sql.DB, o
 				if err := cres.Scan(&name, &tablename, &column, &ctype); err != nil {
 					return nil, err
 				}
-				fmt.Println("name", name, "table", tablename, "column", column)
 				table := tables[tablename]
 				if table != nil {
 					table.Constraints = append(table.Constraints, types.ConstraintDetail{
