@@ -198,7 +198,9 @@ func connectToDB(cmd *cobra.Command, logger logger.Logger, url string, drop bool
 		default:
 		}
 		if _, err := db.QueryContext(ctx, "SELECT 1"); err != nil {
-			logger.Warn("error connecting to %s database ... %s", protocol, err)
+			if !strings.Contains(err.Error(), "EOF") && !strings.Contains(err.Error(), "connection reset") {
+				logger.Warn("error connecting to %s database ... %s", protocol, err)
+			}
 			time.Sleep(2 * time.Second)
 			continue
 		}
