@@ -5,14 +5,13 @@ database:
   url: "postgres://shift:${DB_PASSWORD}@localhost:15432/shift"
 tables:
   - name: "table1"
-    description: "this is a test"
     columns:
       - name: id
         type: int
         primaryKey: true
         autoIncrement: true
         description: >-
-          This is a test
+          This is a primary key which auto increments
       - name: length
         type: float
         length:

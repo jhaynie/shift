@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/jhaynie/shift/internal/migrator/types"
+	"github.com/jhaynie/shift/internal/schema"
 	"github.com/jhaynie/shift/internal/util"
 	"github.com/shopmonkeyus/go-common/logger"
 )
@@ -230,6 +231,57 @@ type TableGenerator interface {
 	QuoteDefaultValue(val string, column types.ColumnDetail) string
 	GenerateTableComment(table string, val string) string
 	GenerateColumnComment(table string, column string, val string) string
+	ToNativeType(column schema.SchemaJsonTablesElemColumnsElem) *schema.SchemaJsonTablesElemColumnsElemNativeType
+}
+
+var generators = make(map[string]TableGenerator)
+
+func RegisterGenerator(protocol string, generator TableGenerator) {
+	generators[protocol] = generator
+}
+
+func GetGenerator(protocol string) TableGenerator {
+	return generators[protocol]
+}
+
+func GenerateColumnStatement(column types.ColumnDetail, generator TableGenerator, unique []string) string {
+	var sql strings.Builder
+	sql.WriteString(generator.QuoteColumn(column.Name))
+	sql.WriteString(" ")
+	var attrs []string
+	if column.IsAutoIncrementing {
+		sql.WriteString("SERIAL")
+	} else {
+		sql.WriteString(column.UDTName)
+	}
+	if !column.IsNullable && column.Default == nil {
+		attrs = append(attrs, "NOT NULL")
+	}
+	if column.Default != nil && !column.IsAutoIncrementing {
+		val := generator.QuoteDefaultValue(*column.Default, column)
+		attrs = append(attrs, "DEFAULT "+val)
+	}
+	if column.IsUnique && len(unique) <= 1 {
+		attrs = append(attrs, "UNIQUE")
+	}
+	if column.IsPrimaryKey {
+		attrs = append(attrs, "PRIMARY KEY")
+	}
+	if len(attrs) > 0 {
+		sql.WriteString(" ")
+		sql.WriteString(strings.Join(attrs, " "))
+	}
+	return sql.String()
+}
+
+func GetTableUniques(table types.TableDetail) []string {
+	var unique []string
+	for _, column := range table.Columns {
+		if column.IsUnique {
+			unique = append(unique, column.Name)
+		}
+	}
+	return unique
 }
 
 func GenerateCreateStatement(name string, table types.TableDetail, generator TableGenerator) string {
@@ -237,47 +289,18 @@ func GenerateCreateStatement(name string, table types.TableDetail, generator Tab
 	sql.WriteString("CREATE TABLE IF NOT EXISTS ")
 	sql.WriteString(generator.QuoteTable(name))
 	sql.WriteString(" (\n")
-	var unique []string
-	for _, column := range table.Columns {
-		if column.IsUnique {
-			unique = append(unique, column.Name)
-		}
-	}
+	uniques := GetTableUniques(table)
 	for i, column := range table.Columns {
 		sql.WriteString("   ")
-		sql.WriteString(generator.QuoteColumn(column.Name))
-		sql.WriteString(" ")
-		var attrs []string
-		if column.IsAutoIncrementing {
-			sql.WriteString("SERIAL")
-		} else {
-			sql.WriteString(column.UDTName)
-		}
-		if !column.IsNullable && column.Default == nil {
-			attrs = append(attrs, "NOT NULL")
-		}
-		if column.Default != nil {
-			val := generator.QuoteDefaultValue(*column.Default, column)
-			attrs = append(attrs, "DEFAULT "+val)
-		}
-		if column.IsUnique && len(unique) <= 1 {
-			attrs = append(attrs, "UNIQUE")
-		}
-		if column.IsPrimaryKey {
-			attrs = append(attrs, "PRIMARY KEY")
-		}
-		if len(attrs) > 0 {
-			sql.WriteString(" ")
-			sql.WriteString(strings.Join(attrs, " "))
-		}
-		if i+1 < len(table.Columns) || len(unique) > 1 {
+		sql.WriteString(GenerateColumnStatement(column, generator, uniques))
+		if i+1 < len(table.Columns) || len(uniques) > 1 {
 			sql.WriteString(",\n")
 		} else {
 			sql.WriteString("\n")
 		}
 	}
-	if len(unique) > 1 {
-		sql.WriteString(fmt.Sprintf("\tUNIQUE (%s)\n", strings.Join(unique, ",")))
+	if len(uniques) > 1 {
+		sql.WriteString(fmt.Sprintf("\tUNIQUE (%s)\n", strings.Join(uniques, ",")))
 	}
 	sql.WriteString(");\n")
 	if table.Description != nil {

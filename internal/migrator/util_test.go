@@ -9,6 +9,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jhaynie/shift/internal/migrator/types"
+	"github.com/jhaynie/shift/internal/schema"
 	"github.com/jhaynie/shift/internal/util"
 	"github.com/shopmonkeyus/go-common/logger"
 	"github.com/stretchr/testify/assert"
@@ -243,6 +244,10 @@ func (g *noOpGenerator) GenerateColumnComment(table string, column string, val s
 		return fmt.Sprintf("COMMENT ON COLUMN %s.%s IS NULL;", table, column)
 	}
 	return fmt.Sprintf("COMMENT ON COLUMN %s.%s IS '%s';", table, column, val)
+}
+
+func (g *noOpGenerator) ToNativeType(column schema.SchemaJsonTablesElemColumnsElem) *schema.SchemaJsonTablesElemColumnsElemNativeType {
+	return nil
 }
 
 func TestGenerateCreateStatement(t *testing.T) {

@@ -166,8 +166,14 @@ func (p *PostgresMigrator) GenerateColumnComment(table string, column string, va
 	return fmt.Sprintf("COMMENT ON COLUMN %s.%s IS %s;", p.QuoteTable(table), p.QuoteColumn(column), p.QuoteLiteral(val))
 }
 
+func (p *PostgresMigrator) ToNativeType(column schema.SchemaJsonTablesElemColumnsElem) *schema.SchemaJsonTablesElemColumnsElemNativeType {
+	return ToNativeType(column)
+}
+
 func init() {
 	var m PostgresMigrator
-	migrator.Register("postgres", &m)
-	migrator.Register("postgresql", &m)
+	for _, proto := range []string{"postgres", "postgresql"} {
+		migrator.Register(proto, &m)
+		migrator.RegisterGenerator(proto, &m)
+	}
 }

@@ -125,7 +125,9 @@ var generateDiffCmd = &cobra.Command{
 			return
 		}
 		format, _ := cmd.Flags().GetString("format")
-		diff.FormatDiff(diff.DiffFormatType(format), driver, changes, os.Stdout)
+		if err := diff.FormatDiff(diff.DiffFormatType(format), driver, changes, os.Stdout); err != nil {
+			logger.Fatal("%s", err)
+		}
 	},
 }
 
