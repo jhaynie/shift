@@ -190,8 +190,8 @@ func connectToDB(cmd *cobra.Command, logger logger.Logger, url string, drop bool
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		logger.Fatal("timeout connecting to %s database ...", protocol)
+	if _, err := db.QueryContext(ctx, "SELECT 1"); err != nil {
+		logger.Fatal("error connecting to %s database ... %s", protocol, err)
 	}
 	return db, protocol
 }
