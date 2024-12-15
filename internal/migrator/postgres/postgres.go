@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jhaynie/shift/internal/diff"
 	"github.com/jhaynie/shift/internal/migrator"
 	"github.com/jhaynie/shift/internal/migrator/types"
 	"github.com/jhaynie/shift/internal/schema"
@@ -38,12 +39,22 @@ func (p *PostgresMigrator) Migrate(args migrator.MigratorArgs) error {
 	if args.Drop {
 		var out strings.Builder
 		ts := time.Now()
-		if err := p.FromSchema(args.Schema, &out); err != nil {
+		if err := p.FromSchema(args.ToSchema, &out); err != nil {
 			return err
 		}
 		args.Logger.Info("generated sql in %v", time.Since(ts))
 		ts = time.Now()
 		if _, err := args.DB.ExecContext(args.Context, out.String()); err != nil {
+			return err
+		}
+		args.Logger.Info("executed sql in %v", time.Since(ts))
+	} else {
+		var queries strings.Builder
+		if err := diff.FormatDiff(diff.FormatSQL, schema.DatabaseDriverPostgres, args.Diff, &queries); err != nil {
+			return err
+		}
+		ts := time.Now()
+		if _, err := args.DB.ExecContext(args.Context, queries.String()); err != nil {
 			return err
 		}
 		args.Logger.Info("executed sql in %v", time.Since(ts))

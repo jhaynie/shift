@@ -10,6 +10,7 @@ import (
 	"github.com/jhaynie/shift/internal/migrator"
 	"github.com/jhaynie/shift/internal/migrator/types"
 	"github.com/jhaynie/shift/internal/schema"
+	"github.com/jhaynie/shift/internal/util"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/shopmonkeyus/go-common/logger"
 )
@@ -233,13 +234,6 @@ var (
 	multiPadding = strings.Repeat(" ", 23)
 )
 
-func plural(count int, singular string, plural string) string {
-	if count == 0 || count > 1 {
-		return plural
-	}
-	return singular
-}
-
 type DiffFormatType string
 
 const (
@@ -390,18 +384,18 @@ func formatTextDiff(changes []migrator.MigrateChanges, out io.Writer) error {
 		case migrator.CreateTable:
 			green(out, "%s Create ", createSymbol)
 			magenta(out, "%s", changeset.Table)
-			green(out, " with %d %s:\n", len(changeset.Ref.Columns), plural(len(changeset.Ref.Columns), "column", "columns"))
+			green(out, " with %d %s:\n", len(changeset.Ref.Columns), util.Plural(len(changeset.Ref.Columns), "column", "columns"))
 			formatAddColumnsDiff(changeset, out)
 		case migrator.DropTable:
 			red(out, "%s Drop ", dropSymbol)
 			magenta(out, "%s", changeset.Table)
-			red(out, " with %d %s:\n", len(changeset.Ref.Columns), plural(len(changeset.Ref.Columns), "column", "columns"))
+			red(out, " with %d %s:\n", len(changeset.Ref.Columns), util.Plural(len(changeset.Ref.Columns), "column", "columns"))
 			formatDropColumnsDiff(changeset, out)
 		case migrator.AlterTable:
 			blue(out, "%s Alter ", alterSymbol)
 			magenta(out, "%s", changeset.Table)
 			if len(changeset.Columns) > 0 {
-				blue(out, " with %d %s:\n", len(changeset.Columns), plural(len(changeset.Columns), "column", "columns"))
+				blue(out, " with %d %s:\n", len(changeset.Columns), util.Plural(len(changeset.Columns), "column", "columns"))
 				formatAlterColumnsDiff(changeset, out)
 			} else if changeset.Description != nil {
 				blue(out, " with description changed from ")

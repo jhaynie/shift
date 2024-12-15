@@ -63,11 +63,13 @@ type MigrateChanges struct {
 }
 
 type MigratorArgs struct {
-	Context context.Context
-	Logger  logger.Logger
-	Schema  *schema.SchemaJson
-	DB      *sql.DB
-	Drop    bool
+	Context    context.Context
+	Logger     logger.Logger
+	FromSchema *schema.SchemaJson
+	ToSchema   *schema.SchemaJson
+	DB         *sql.DB
+	Drop       bool
+	Diff       []MigrateChanges
 }
 
 type ToSchemaArgs struct {

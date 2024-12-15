@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	_ "github.com/jhaynie/shift/internal/migrator/mysql"
 	_ "github.com/jhaynie/shift/internal/migrator/postgres"
 	"github.com/jhaynie/shift/internal/schema"
+	"github.com/shopmonkeyus/go-common/logger"
 	csys "github.com/shopmonkeyus/go-common/sys"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -91,40 +93,45 @@ var generateSQLCmd = &cobra.Command{
 	},
 }
 
+func rundiff(cmd *cobra.Command, logger logger.Logger, filename string, drop bool) (*sql.DB, string, []migrator.MigrateChanges, *schema.SchemaJson, *schema.SchemaJson) {
+	if !csys.Exists(filename) {
+		logger.Fatal("file %s does not exists or is not accessible", filename)
+	}
+	newSchema, err := migrator.Load(filename)
+	if err != nil {
+		logger.Fatal("%s", err)
+	}
+	db, protocol := connectToDB(cmd, logger, newSchema.Database.Url.(string), drop)
+	existingSchema, err := migrator.ToSchema(protocol, migrator.ToSchemaArgs{
+		Context: context.Background(),
+		Logger:  logger,
+		DB:      db,
+	})
+	if err != nil {
+		logger.Fatal("%s", err)
+	}
+	driver := schema.DatabaseDriverType(protocol)
+	changes, err := diff.Diff(logger, driver, newSchema, existingSchema)
+	if err != nil {
+		logger.Fatal("%s", err)
+	}
+	return db, protocol, changes, existingSchema, newSchema
+}
+
 var generateDiffCmd = &cobra.Command{
 	Use:   "diff [file]",
 	Args:  cobra.ExactArgs(1),
 	Short: "Generate diff from a schema",
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := newLogger(cmd)
-		file := args[0]
-		if !csys.Exists(file) {
-			logger.Fatal("file %s does not exists or is not accessible", file)
-		}
-		newSchema, err := migrator.Load(file)
-		if err != nil {
-			logger.Fatal("%s", err)
-		}
-		db, protocol := connectToDB(cmd, logger, newSchema.Database.Url.(string), false)
-		defer db.Close()
-		existingSchema, err := migrator.ToSchema(protocol, migrator.ToSchemaArgs{
-			Context: context.Background(),
-			Logger:  logger,
-			DB:      db,
-		})
-		if err != nil {
-			logger.Fatal("%s", err)
-		}
-		driver := schema.DatabaseDriverType(protocol)
-		changes, err := diff.Diff(logger, driver, newSchema, existingSchema)
-		if err != nil {
-			logger.Fatal("%s", err)
-		}
+		db, protocol, changes, _, _ := rundiff(cmd, logger, args[0], false)
+		db.Close()
 		if len(changes) == 0 {
 			fmt.Println("no changes detected")
 			return
 		}
 		format, _ := cmd.Flags().GetString("format")
+		driver := schema.DatabaseDriverType(protocol)
 		if err := diff.FormatDiff(diff.DiffFormatType(format), driver, changes, os.Stdout); err != nil {
 			logger.Fatal("%s", err)
 		}
