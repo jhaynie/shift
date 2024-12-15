@@ -31,6 +31,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/jhaynie/shift/internal/migrator"
 	"github.com/shopmonkeyus/go-common/logger"
 	"github.com/spf13/cobra"
@@ -39,10 +40,22 @@ import (
 
 var cfgFile string
 
+var tagline = color.BlueString("Super powers for data migrations")
+
+var logo = `
+         __    _ ______ 
+   _____/ /_  (_) __/ /_
+  / ___/ __ \/ / /_/ __/
+ (__  ) / / / / __/ /_  
+/____/_/ /_/_/_/  \__/  
+
+` + tagline
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "shift",
-	Short: "A set of tools for making database migrations easier",
+	Short: tagline,
+	Long:  color.HiMagentaString(logo),
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},
