@@ -25,6 +25,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -93,7 +94,12 @@ func newLogger(cmd *cobra.Command) logger.Logger {
 	case "debug":
 		level = logger.LevelDebug
 	}
-	return logger.NewConsoleLogger(level)
+	logger := logger.NewConsoleLogger(level)
+	label, _ := cmd.Flags().GetString("log-label")
+	if label != "" {
+		return logger.WithPrefix("[" + label + "]")
+	}
+	return logger
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -191,5 +197,7 @@ func connectToDB(cmd *cobra.Command, logger logger.Logger, url string, drop bool
 }
 
 func init() {
+	log.SetFlags(0)
 	rootCmd.PersistentFlags().String("log-level", "info", "the log level")
+	rootCmd.PersistentFlags().String("log-label", "", "a log label to add to the logger")
 }

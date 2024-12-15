@@ -13,3 +13,6 @@ format:
 
 test:
 	@go test -v ./...
+
+e2e:
+	@go run -tags e2e . e2e --log-level=debug
