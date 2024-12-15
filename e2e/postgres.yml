@@ -1,0 +1,90 @@
+# yaml-language-server: $schema=../schema.json
+$schema: "../schema.json"
+version: "1"
+database:
+  url: "postgres://shift:${DB_PASSWORD}@localhost:15432/shift"
+tables:
+  - name: "table1"
+    columns:
+      - name: id
+        type: int
+        primaryKey: true
+        autoIncrement: true
+        description: >-
+          This is a primary key which auto increments
+      - name: length
+        type: float
+        length:
+          precision: 10
+          scale: 3
+        description: "fixed length number with scale"
+      - name: float
+        type: float
+      - name: smfloat
+        type: float
+        maxLength: 32
+      - name: int
+        type: int
+      - name: string
+        type: string
+      - name: maxstring
+        type: string
+        maxLength: 255
+      - name: smint
+        type: int
+        length:
+          precision: 16
+      - name: medint
+        type: int
+        length:
+          precision: 32
+      - name: lgint
+        type: int
+        length:
+          precision: 64
+      - name: thedate
+        type: datetime
+      - name: binary
+        type: string
+        subtype: binary
+      - name: uuid
+        type: string
+        subtype: uuid
+      - name: bits
+        type: string
+        subtype: bit
+      - name: fixedbits
+        type: string
+        subtype: bit
+        maxLength: 2
+      - name: json
+        type: string
+        subtype: json
+      - name: jsondef
+        type: string
+        subtype: json
+        default:
+          postgres: '{"a":"b"}'
+      - name: bool
+        type: boolean
+      - name: intarr
+        type: int
+        isArray: true
+      - name: verysmallint
+        type: int
+        default:
+          postgres: "0"
+        nativeType:
+          postgres: int2
+      - name: intdef
+        type: int
+        default:
+          postgres: "1022"
+      - name: floatdef
+        type: float
+        default:
+          postgres: "3.14"
+      - name: booldef
+        type: boolean
+        default:
+          postgres: "true"

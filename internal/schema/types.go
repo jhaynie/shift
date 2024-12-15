@@ -6,8 +6,11 @@ import "encoding/json"
 import "fmt"
 import "reflect"
 
-// The JSON schema for the Shift migration configuration file.
+// The JSON schema for the Shift database configuration file.
 type SchemaJson struct {
+	// The URL to the Shift schema.
+	Schema string `json:"$schema" yaml:"$schema" mapstructure:"$schema"`
+
 	// The database configuration for the migration to use.
 	Database SchemaJsonDatabase `json:"database" yaml:"database" mapstructure:"database"`
 
@@ -20,43 +23,8 @@ type SchemaJson struct {
 
 // The database configuration for the migration to use.
 type SchemaJsonDatabase struct {
-	// The database driver to use for the migration.
-	Driver SchemaJsonDatabaseDriver `json:"driver" yaml:"driver" mapstructure:"driver"`
-
-	// The database driver URL for connecting to the database.
-	Url string `json:"url" yaml:"url" mapstructure:"url"`
-}
-
-type SchemaJsonDatabaseDriver string
-
-const SchemaJsonDatabaseDriverMysql SchemaJsonDatabaseDriver = "mysql"
-const SchemaJsonDatabaseDriverPostgres SchemaJsonDatabaseDriver = "postgres"
-const SchemaJsonDatabaseDriverSqlite SchemaJsonDatabaseDriver = "sqlite"
-
-var enumValues_SchemaJsonDatabaseDriver = []interface{}{
-	"mysql",
-	"postgres",
-	"sqlite",
-}
-
-// UnmarshalJSON implements json.Unmarshaler.
-func (j *SchemaJsonDatabaseDriver) UnmarshalJSON(b []byte) error {
-	var v string
-	if err := json.Unmarshal(b, &v); err != nil {
-		return err
-	}
-	var ok bool
-	for _, expected := range enumValues_SchemaJsonDatabaseDriver {
-		if reflect.DeepEqual(v, expected) {
-			ok = true
-			break
-		}
-	}
-	if !ok {
-		return fmt.Errorf("invalid value (expected one of %#v): %#v", enumValues_SchemaJsonDatabaseDriver, v)
-	}
-	*j = SchemaJsonDatabaseDriver(v)
-	return nil
+	// Url corresponds to the JSON schema field "url".
+	Url interface{} `json:"url" yaml:"url" mapstructure:"url"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -64,9 +32,6 @@ func (j *SchemaJsonDatabase) UnmarshalJSON(b []byte) error {
 	var raw map[string]interface{}
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
-	}
-	if _, ok := raw["driver"]; raw != nil && !ok {
-		return fmt.Errorf("field driver in SchemaJsonDatabase: required")
 	}
 	if _, ok := raw["url"]; raw != nil && !ok {
 		return fmt.Errorf("field url in SchemaJsonDatabase: required")
@@ -82,8 +47,11 @@ func (j *SchemaJsonDatabase) UnmarshalJSON(b []byte) error {
 
 // The table definition
 type SchemaJsonTablesElem struct {
-	// The columns to manage in the table.
+	// The columns that are part of the table.
 	Columns []SchemaJsonTablesElemColumnsElem `json:"columns" yaml:"columns" mapstructure:"columns"`
+
+	// The description of the table.
+	Description *string `json:"description,omitempty" yaml:"description,omitempty" mapstructure:"description,omitempty"`
 
 	// The name of the table.
 	Name string `json:"name" yaml:"name" mapstructure:"name"`
@@ -94,8 +62,8 @@ type SchemaJsonTablesElemColumnsElem struct {
 	// Whether the column is auto-incrementing.
 	AutoIncrement *bool `json:"autoIncrement,omitempty" yaml:"autoIncrement,omitempty" mapstructure:"autoIncrement,omitempty"`
 
-	// The default value of the column.
-	Default *string `json:"default,omitempty" yaml:"default,omitempty" mapstructure:"default,omitempty"`
+	// The specific native database default value if no value is provided.
+	Default *SchemaJsonTablesElemColumnsElemDefault `json:"default,omitempty" yaml:"default,omitempty" mapstructure:"default,omitempty"`
 
 	// The description of the column.
 	Description *string `json:"description,omitempty" yaml:"description,omitempty" mapstructure:"description,omitempty"`
@@ -103,14 +71,20 @@ type SchemaJsonTablesElemColumnsElem struct {
 	// Whether the column is indexed.
 	Index *bool `json:"index,omitempty" yaml:"index,omitempty" mapstructure:"index,omitempty"`
 
+	// If the type represents an array.
+	IsArray bool `json:"isArray,omitempty" yaml:"isArray,omitempty" mapstructure:"isArray,omitempty"`
+
+	// The exact length for a number type.
+	Length *SchemaJsonTablesElemColumnsElemLength `json:"length,omitempty" yaml:"length,omitempty" mapstructure:"length,omitempty"`
+
 	// The max length of the column.
-	Length *int `json:"length,omitempty" yaml:"length,omitempty" mapstructure:"length,omitempty"`
+	MaxLength *int `json:"maxLength,omitempty" yaml:"maxLength,omitempty" mapstructure:"maxLength,omitempty"`
 
 	// The name of the column.
 	Name string `json:"name" yaml:"name" mapstructure:"name"`
 
-	// Specify a specific native database type which overrides the type.
-	NativeType *string `json:"nativeType,omitempty" yaml:"nativeType,omitempty" mapstructure:"nativeType,omitempty"`
+	// The specific native database type which overrides the generic type.
+	NativeType *SchemaJsonTablesElemColumnsElemNativeType `json:"nativeType,omitempty" yaml:"nativeType,omitempty" mapstructure:"nativeType,omitempty"`
 
 	// Whether the column is nullable.
 	Nullable *bool `json:"nullable,omitempty" yaml:"nullable,omitempty" mapstructure:"nullable,omitempty"`
@@ -121,22 +95,85 @@ type SchemaJsonTablesElemColumnsElem struct {
 	// The foreign key reference for the column.
 	References *SchemaJsonTablesElemColumnsElemReferences `json:"references,omitempty" yaml:"references,omitempty" mapstructure:"references,omitempty"`
 
-	// The type subtype of the column.
+	// The generic subtype of the column.
 	Subtype *SchemaJsonTablesElemColumnsElemSubtype `json:"subtype,omitempty" yaml:"subtype,omitempty" mapstructure:"subtype,omitempty"`
 
-	// The data type of the column.
+	// The generic data type of the column.
 	Type SchemaJsonTablesElemColumnsElemType `json:"type" yaml:"type" mapstructure:"type"`
 
 	// Whether the column is unique.
 	Unique *bool `json:"unique,omitempty" yaml:"unique,omitempty" mapstructure:"unique,omitempty"`
 }
 
+// The specific native database default value if no value is provided.
+type SchemaJsonTablesElemColumnsElemDefault struct {
+	// The native MySQL default value.
+	Mysql *string `json:"mysql,omitempty" yaml:"mysql,omitempty" mapstructure:"mysql,omitempty"`
+
+	// The native Postgres default value.
+	Postgres *string `json:"postgres,omitempty" yaml:"postgres,omitempty" mapstructure:"postgres,omitempty"`
+
+	// The native SQLite default value.
+	Sqlite *string `json:"sqlite,omitempty" yaml:"sqlite,omitempty" mapstructure:"sqlite,omitempty"`
+}
+
+// The exact length for a number type.
+type SchemaJsonTablesElemColumnsElemLength struct {
+	// Precision corresponds to the JSON schema field "precision".
+	Precision int `json:"precision" yaml:"precision" mapstructure:"precision"`
+
+	// Scale corresponds to the JSON schema field "scale".
+	Scale *float64 `json:"scale,omitempty" yaml:"scale,omitempty" mapstructure:"scale,omitempty"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *SchemaJsonTablesElemColumnsElemLength) UnmarshalJSON(b []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["precision"]; raw != nil && !ok {
+		return fmt.Errorf("field precision in SchemaJsonTablesElemColumnsElemLength: required")
+	}
+	type Plain SchemaJsonTablesElemColumnsElemLength
+	var plain Plain
+	if err := json.Unmarshal(b, &plain); err != nil {
+		return err
+	}
+	if 1000 < plain.Precision {
+		return fmt.Errorf("field %s: must be <= %v", "precision", 1000)
+	}
+	if 1 > plain.Precision {
+		return fmt.Errorf("field %s: must be >= %v", "precision", 1)
+	}
+	if plain.Scale != nil && 1000 < *plain.Scale {
+		return fmt.Errorf("field %s: must be <= %v", "scale", 1000)
+	}
+	if plain.Scale != nil && -1000 > *plain.Scale {
+		return fmt.Errorf("field %s: must be >= %v", "scale", -1000)
+	}
+	*j = SchemaJsonTablesElemColumnsElemLength(plain)
+	return nil
+}
+
+// The specific native database type which overrides the generic type.
+type SchemaJsonTablesElemColumnsElemNativeType struct {
+	// The native MySQL data type.
+	Mysql *string `json:"mysql,omitempty" yaml:"mysql,omitempty" mapstructure:"mysql,omitempty"`
+
+	// The native Postgres data type.
+	Postgres *string `json:"postgres,omitempty" yaml:"postgres,omitempty" mapstructure:"postgres,omitempty"`
+
+	// The native SQLite data type.
+	Sqlite *string `json:"sqlite,omitempty" yaml:"sqlite,omitempty" mapstructure:"sqlite,omitempty"`
+}
+
 // The foreign key reference for the column.
 type SchemaJsonTablesElemColumnsElemReferences struct {
-	// The column the column references.
+	// The foreign column the column references.
 	Column string `json:"column" yaml:"column" mapstructure:"column"`
 
-	// The table the column references.
+	// The foreign table the column references.
 	Table string `json:"table" yaml:"table" mapstructure:"table"`
 }
 
@@ -163,7 +200,6 @@ func (j *SchemaJsonTablesElemColumnsElemReferences) UnmarshalJSON(b []byte) erro
 
 type SchemaJsonTablesElemColumnsElemSubtype string
 
-const SchemaJsonTablesElemColumnsElemSubtypeArray SchemaJsonTablesElemColumnsElemSubtype = "array"
 const SchemaJsonTablesElemColumnsElemSubtypeBinary SchemaJsonTablesElemColumnsElemSubtype = "binary"
 const SchemaJsonTablesElemColumnsElemSubtypeBit SchemaJsonTablesElemColumnsElemSubtype = "bit"
 const SchemaJsonTablesElemColumnsElemSubtypeJson SchemaJsonTablesElemColumnsElemSubtype = "json"
@@ -171,7 +207,6 @@ const SchemaJsonTablesElemColumnsElemSubtypeUuid SchemaJsonTablesElemColumnsElem
 
 var enumValues_SchemaJsonTablesElemColumnsElemSubtype = []interface{}{
 	"json",
-	"array",
 	"binary",
 	"bit",
 	"uuid",
@@ -201,14 +236,14 @@ type SchemaJsonTablesElemColumnsElemType string
 
 const SchemaJsonTablesElemColumnsElemTypeBoolean SchemaJsonTablesElemColumnsElemType = "boolean"
 const SchemaJsonTablesElemColumnsElemTypeDatetime SchemaJsonTablesElemColumnsElemType = "datetime"
-const SchemaJsonTablesElemColumnsElemTypeDouble SchemaJsonTablesElemColumnsElemType = "double"
+const SchemaJsonTablesElemColumnsElemTypeFloat SchemaJsonTablesElemColumnsElemType = "float"
 const SchemaJsonTablesElemColumnsElemTypeInt SchemaJsonTablesElemColumnsElemType = "int"
 const SchemaJsonTablesElemColumnsElemTypeString SchemaJsonTablesElemColumnsElemType = "string"
 
 var enumValues_SchemaJsonTablesElemColumnsElemType = []interface{}{
 	"string",
 	"int",
-	"double",
+	"float",
 	"boolean",
 	"datetime",
 }
@@ -250,11 +285,14 @@ func (j *SchemaJsonTablesElemColumnsElem) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &plain); err != nil {
 		return err
 	}
-	if plain.Length != nil && 65535 < *plain.Length {
-		return fmt.Errorf("field %s: must be <= %v", "length", 65535)
+	if v, ok := raw["isArray"]; !ok || v == nil {
+		plain.IsArray = false
 	}
-	if plain.Length != nil && 0 >= *plain.Length {
-		return fmt.Errorf("field %s: must be > %v", "length", 0)
+	if plain.MaxLength != nil && 65535 < *plain.MaxLength {
+		return fmt.Errorf("field %s: must be <= %v", "maxLength", 65535)
+	}
+	if plain.MaxLength != nil && 0 >= *plain.MaxLength {
+		return fmt.Errorf("field %s: must be > %v", "maxLength", 0)
 	}
 	*j = SchemaJsonTablesElemColumnsElem(plain)
 	return nil
@@ -286,6 +324,9 @@ func (j *SchemaJson) UnmarshalJSON(b []byte) error {
 	var raw map[string]interface{}
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
+	}
+	if _, ok := raw["$schema"]; raw != nil && !ok {
+		return fmt.Errorf("field $schema in SchemaJson: required")
 	}
 	if _, ok := raw["database"]; raw != nil && !ok {
 		return fmt.Errorf("field database in SchemaJson: required")

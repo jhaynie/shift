@@ -10,6 +10,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const (
+	DefaultVersion = "1"
+	DefaultSchema  = "https://raw.githubusercontent.com/jhaynie/shift/refs/heads/main/schema.json"
+)
+
 var nameRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 func validateName(name string) bool {
@@ -38,6 +43,9 @@ func Load(filename string) (*SchemaJson, error) {
 	default:
 		return nil, fmt.Errorf("unsupported file extension: %s. should be either .json or .yaml", filepath.Ext(filename))
 	}
+	if s, ok := schema.Database.Url.(string); ok {
+		schema.Database.Url = os.ExpandEnv(s)
+	}
 	for _, table := range schema.Tables {
 		if !validateName(table.Name) {
 			return nil, fmt.Errorf("table `%s` has an invalid name", table.Name)
@@ -49,4 +57,18 @@ func Load(filename string) (*SchemaJson, error) {
 		}
 	}
 	return &schema, nil
+}
+
+type SchemaJsonForOutput struct {
+	// The URL to the Shift schema.
+	Schema string `json:"$schema" yaml:"-" mapstructure:"-"`
+
+	// The version of the Shift configuration file.
+	Version string `json:"version" yaml:"version" mapstructure:"version"`
+
+	// The database configuration for the migration to use.
+	Database SchemaJsonDatabase `json:"database" yaml:"database" mapstructure:"database"`
+
+	// The tables to manage in the migration.
+	Tables []SchemaJsonTablesElem `json:"tables" yaml:"tables" mapstructure:"tables"`
 }

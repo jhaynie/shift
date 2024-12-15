@@ -22,10 +22,17 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
+	"github.com/jhaynie/shift/internal/migrator"
+	"github.com/shopmonkeyus/go-common/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -60,6 +67,22 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/config/shift/config.yaml)")
 }
 
+func newLogger(cmd *cobra.Command) logger.Logger {
+	ll, _ := cmd.Flags().GetString("log-level")
+	level := logger.LevelInfo
+	switch strings.ToLower(ll) {
+	case "trace":
+		level = logger.LevelTrace
+	case "error", "fatal":
+		level = logger.LevelError
+	case "warn", "warning":
+		level = logger.LevelWarn
+	case "debug":
+		level = logger.LevelDebug
+	}
+	return logger.NewConsoleLogger(level)
+}
+
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
 	if cfgFile != "" {
@@ -80,7 +103,80 @@ func initConfig() {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err != nil {
-		fmt.Println("Error reading config file:", viper.ConfigFileUsed(), "error:", err)
-		os.Exit(1)
+		if !strings.Contains(err.Error(), "Not Found") {
+			fmt.Println("Error reading config file:", viper.ConfigFileUsed(), "error:", err)
+			os.Exit(1)
+		}
 	}
+}
+
+func addUrlFlag(cmd *cobra.Command) {
+	cmd.Flags().String("url", os.Getenv("DATABASE_URL"), "the database url")
+}
+
+func dropDatabase(logger logger.Logger, protocol string, driver string, urlstr string) {
+	var currentDB string
+	var newurl string
+	switch protocol {
+	case "postgres":
+		u, err := url.Parse(urlstr)
+		if err != nil {
+			logger.Fatal("%s", err)
+		}
+		currentDB = u.Path[1:] // get the current database from the path
+		u.Path = "/postgres"   // connect without providing a database
+		newurl = u.String()
+	default:
+		logger.Fatal("no drop database provided for %s", protocol)
+	}
+	db, err := sql.Open(driver, newurl)
+	if err != nil {
+		logger.Fatal("Unable to connect to database: %v", err)
+	}
+	ts := time.Now()
+	q := fmt.Sprintf("DROP DATABASE IF EXISTS %s", currentDB)
+	logger.Trace("sql: %s", q)
+	if _, err := db.Exec(q); err != nil {
+		logger.Fatal("error dropping database: %s. %s", currentDB, err)
+	}
+	logger.Info("dropped database %s in %v", currentDB, time.Since(ts))
+	ts = time.Now()
+	q = fmt.Sprintf("CREATE DATABASE %s", currentDB)
+	logger.Trace("sql: %s", q)
+	if _, err := db.Exec(q); err != nil {
+		logger.Fatal("error creating database: %s. %s", currentDB, err)
+	}
+	db.Close()
+	logger.Info("created database %s in %v", currentDB, time.Since(ts))
+}
+
+func connectToDB(cmd *cobra.Command, logger logger.Logger, url string, drop bool) (*sql.DB, string) {
+	if url == "" {
+		urlstr, _ := cmd.Flags().GetString("url")
+		if urlstr == "" {
+			logger.Fatal("must provide either --url command line option or set the environment variable DATABASE_URL")
+		}
+		url = urlstr
+	}
+	driver, protocol, err := migrator.DriverFromURL(url)
+	if err != nil {
+		logger.Fatal("%s", err)
+	}
+	if drop {
+		dropDatabase(logger, protocol, driver, url)
+	}
+	db, err := sql.Open(driver, url)
+	if err != nil {
+		logger.Fatal("Unable to connect to database: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		logger.Fatal("timeout connecting to %s database ...", protocol)
+	}
+	return db, protocol
+}
+
+func init() {
+	rootCmd.PersistentFlags().String("log-level", "info", "the log level")
 }

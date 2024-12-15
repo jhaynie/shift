@@ -1,0 +1,18 @@
+services:
+  mysql:
+    image: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: shift
+      MYSQL_USER: shift
+      MYSQL_PASSWORD: shift1234#
+      MYSQL_DATABASE: shift
+    ports:
+      - 13306:3306
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_USER: shift
+      POSTGRES_PASSWORD: shift1234#
+      POSTGRES_DB: shift
+    ports:
+      - 15432:5432
