@@ -2,28 +2,33 @@
 
 ## Milestone 1
 
-[X] Goal: Generate Schema from an existing Postgres database
+- [x] Generate Schema from an existing Postgres database
 
 ## Milestone 2
 
-[X] Goal: Create New Postgres Database tables from Schema
+- [x] Goal: Create New Postgres Database tables from Schema
 
 ## Milestone 3
 
-[X] Goal: Implement realtime diff to and from Postgres database
+- [x] Implement realtime diff to and from Postgres database
 
 ## Milestone 4
 
-[ ] Goal: Build out e2e test suite
+- [ ] Build out e2e test suite
 
 ## Milestone 5
 
-[ ] Goal: Implement MySQL support
+- [ ] Implement MySQL support
 
 ## Milestone 6
 
-[ ] Goal: Implement SQLite support
+- [ ] Implement SQLite support
 
 ## Milestone 7
 
-[ ] Goal: Improve the DX around new project setup and tooling
+- [ ] Improve the DX around new project setup and tooling
+
+## Milestone 8
+
+- [ ] Add support for indexes
+- [ ] Add support for foreign keys

@@ -1,4 +1,13 @@
-# Shift
+```
+         __    _ ______
+   _____/ /_  (_) __/ /_
+  / ___/ __ \/ / /_/ __/
+ (__  ) / / / / __/ /_
+/____/_/ /_/_/_/  \__/
+
+```
+
+**Super powers for data migrations**
 
 > [!CAUTION]
 > Work in progress
