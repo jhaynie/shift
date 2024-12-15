@@ -25,6 +25,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -93,7 +94,12 @@ func newLogger(cmd *cobra.Command) logger.Logger {
 	case "debug":
 		level = logger.LevelDebug
 	}
-	return logger.NewConsoleLogger(level)
+	logger := logger.NewConsoleLogger(level)
+	label, _ := cmd.Flags().GetString("log-label")
+	if label != "" {
+		return logger.WithPrefix("[" + label + "]")
+	}
+	return logger
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -182,14 +188,29 @@ func connectToDB(cmd *cobra.Command, logger logger.Logger, url string, drop bool
 	if err != nil {
 		logger.Fatal("Unable to connect to database: %v", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		logger.Fatal("timeout connecting to %s database ...", protocol)
+	var ok bool
+	for !ok {
+		select {
+		case <-ctx.Done():
+			logger.Fatal("timed out trying to connect to %s database ...", protocol)
+		default:
+		}
+		if _, err := db.QueryContext(ctx, "SELECT 1"); err != nil {
+			if !strings.Contains(err.Error(), "EOF") && !strings.Contains(err.Error(), "connection reset") {
+				logger.Warn("error connecting to %s database ... %s", protocol, err)
+			}
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		ok = true
 	}
 	return db, protocol
 }
 
 func init() {
+	log.SetFlags(0)
 	rootCmd.PersistentFlags().String("log-level", "info", "the log level")
+	rootCmd.PersistentFlags().String("log-label", "", "a log label to add to the logger")
 }

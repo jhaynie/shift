@@ -365,7 +365,9 @@ func formatSQLDiff(driver schema.DatabaseDriverType, changes []migrator.MigrateC
 							default:
 								panic("change " + change + " not handled")
 							}
-							statements = append(statements, sout.String())
+							if sout.Len() > 0 {
+								statements = append(statements, sout.String())
+							}
 						}
 						io.WriteString(out, strings.Join(statements, ", "))
 						io.WriteString(out, ";\n")

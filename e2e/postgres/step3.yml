@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../../schema.json
+$schema: ../../schema.json
+version: "1"
+database:
+  url: "postgres://shift:${DB_PASSWORD}@127.0.0.1:15432/shift"
+tables:
+  - name: "test"
+    columns:
+      - name: id
+        type: int
+        primaryKey: true
+        autoIncrement: true
+        description: This is a primary key which auto increments (edited)
+      - name: name
+        type: string
+        description: This is a name column
+        nullable: true
+        maxLength: 255
