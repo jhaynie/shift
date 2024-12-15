@@ -2,7 +2,7 @@
 $schema: ../../schema.json
 version: "1"
 database:
-  url: "postgres://shift:${DB_PASSWORD}@localhost:15432/shift"
+  url: "postgres://shift:${DB_PASSWORD}@127.0.0.1:15432/shift"
 tables:
   - name: "test"
     columns:

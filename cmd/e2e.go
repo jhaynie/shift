@@ -18,10 +18,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func dockerDown(docker string, cwd string) {
-	c := exec.Command(docker, "compose", "down", "--timeout=30s")
+func dockerDown(logger logger.Logger, docker string, cwd string) {
+	c := exec.Command(docker, "compose", "down", "--timeout=10")
 	c.Dir = cwd
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
 	c.Run()
+	logger.Debug("docker compose down")
 }
 
 type dockerStatus struct {
@@ -31,7 +34,8 @@ type dockerStatus struct {
 }
 
 func waitForReady(logger logger.Logger, docker string, cwd string) {
-	for {
+	started := time.Now()
+	for time.Since(started) < time.Minute {
 		c := exec.Command(docker, "ps", "--format=json")
 		c.Dir = cwd
 		buf, err := c.CombinedOutput()
@@ -116,9 +120,10 @@ var e2eCmd = &cobra.Command{
 			logger.Fatal("error starting docker compose: %s", err)
 		}
 		waitForReady(logger, docker, cwd)
+		var stopped bool
 		defer func() {
-			if shutdown {
-				dockerDown(docker, cwd)
+			if shutdown && !stopped {
+				dockerDown(logger, docker, cwd)
 			}
 		}()
 		basedir := filepath.Join(cwd, "e2e")
@@ -137,7 +142,8 @@ var e2eCmd = &cobra.Command{
 			runForceMigration(logger, filename, strings.Replace(label, ".yml", "", 1), level)
 		}
 		if shutdown {
-			dockerDown(docker, cwd)
+			dockerDown(logger, docker, cwd)
+			stopped = true
 		}
 	},
 }
