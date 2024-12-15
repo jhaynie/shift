@@ -59,10 +59,6 @@ func waitForReady(logger logger.Logger, docker string, cwd string) {
 		}
 		logger.Trace("count=%d, ready=%d", count, ready)
 		if count > 0 && count == ready {
-			c = exec.Command(docker, "logs", "shift-postgres-1")
-			c.Stdout = os.Stdout
-			c.Stderr = os.Stderr
-			c.Run()
 			return
 		}
 		time.Sleep(time.Second)

@@ -199,6 +199,7 @@ func connectToDB(cmd *cobra.Command, logger logger.Logger, url string, drop bool
 		}
 		if _, err := db.QueryContext(ctx, "SELECT 1"); err != nil {
 			logger.Error("error connecting to %s database ... %s", protocol, err)
+			time.Sleep(time.Second)
 			continue
 		}
 		ok = true
