@@ -4,6 +4,7 @@ go 1.23.3
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
+	github.com/erikgeiser/promptkit v0.9.0
 	github.com/fatih/color v1.18.0
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/lib/pq v1.10.9
@@ -27,7 +28,6 @@ require (
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/erikgeiser/promptkit v0.9.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/getsentry/sentry-go v0.27.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
