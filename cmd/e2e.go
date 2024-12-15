@@ -19,7 +19,11 @@ import (
 )
 
 func dockerDown(logger logger.Logger, docker string, cwd string) {
-	c := exec.Command(docker, "compose", "down", "--timeout=10")
+	args := []string{"compose", "down", "--timeout=10"}
+	if os.Getenv("CI") == "true" {
+		args = append(args, "--rmi=all")
+	}
+	c := exec.Command(docker, args...)
 	c.Dir = cwd
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
@@ -111,7 +115,7 @@ var e2eCmd = &cobra.Command{
 			level = "info"
 		}
 		cwd, _ := os.Getwd()
-		c := exec.Command(docker, "compose", "up", "-d")
+		c := exec.Command(docker, "compose", "up", "-d", "--quiet-pull")
 		c.Dir = cwd
 		c.Stdout = os.Stdout
 		c.Stderr = os.Stderr
